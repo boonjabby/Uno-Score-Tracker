@@ -81,7 +81,7 @@
 
       <div id="liveStartControls" class="live-start-controls">
         <button id="hostLiveGame" class="primary" type="button">Host Live Game</button>
-        <button id="showJoinControls" class="secondary" type="button">Join as Viewer</button>
+        <button id="showJoinControls" class="secondary" type="button">Join Live Game</button>
       </div>
 
       <div id="joinControls" class="join-controls hidden">
@@ -114,9 +114,10 @@
       <div id="collaborationArea" class="collaboration-area hidden">
         <div class="collaboration-identity">
           <label><span>Your display name</span><input id="memberDisplayName" type="text" maxlength="30" placeholder="This device" /></label>
-          <label><span>Join as</span><select id="memberMode"><option value="player">Player</option><option value="viewer">Viewer</option></select></label>
+          <label><span>Device label</span><select id="memberMode" aria-describedby="memberModeHelp"><option value="player">Player</option><option value="viewer">Viewer</option></select></label>
           <span id="memberRoleBadge" class="role-badge">Viewer</span>
         </div>
+        <p id="memberModeHelp" class="note">Player and Viewer have the same request controls. The label helps the host identify how this device is being used; Controller permissions are granted separately by the host.</p>
 
         <div id="memberControls" class="member-controls hidden">
           <button id="collaborativeReverse" class="primary collaboration-reverse" type="button">↻ Reverse Direction Now</button>

@@ -30,9 +30,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open with Chrome or Safari
+## Publish with GitHub Pages
 
-https://boonjabby.github.io/Uno-Score-Tracker/
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -68,6 +78,8 @@ Games, profiles and preferences are stored only in this browser unless a host st
 ## Live cross-device multiplayer
 
 Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtime Database. The host remains authoritative. Players and viewers can submit Reverse immediately and request protected actions; the host can grant narrowly scoped Controller permissions. A QR join link and a six-character room code are both provided.
+
+Player and Viewer are descriptive device labels and intentionally have the same request rights. Use Player for a participant's phone and Viewer for a read-mostly display or spectator. A device becomes a Controller only when the host grants one or more direct-action capabilities.
 
 ### One-time Firebase setup
 

@@ -7,6 +7,9 @@
 - Added duplicate processing protection, revision checks, request expiry, command cooldowns and validated bounded Firebase records.
 - Added a live activity log, explicit host transfer and safe host-disconnected waiting/reconnect behavior.
 - Updated Firebase Realtime Database rules, PWA metadata, cache names and architecture documentation.
+- Corrected Realtime Database rules syntax by replacing unsupported child-count calls with bounded child-key validation and using an explicit Boolean comparison for the running timer.
+- Fixed permission-denied errors for Reverse and no-argument requests after Firebase removes empty `payload` objects.
+- Clarified that Player and Viewer are descriptive device labels with identical request rights; host-granted Controller permissions determine direct action access.
 
 ## 5.1.0 — 2026-07-20
 
