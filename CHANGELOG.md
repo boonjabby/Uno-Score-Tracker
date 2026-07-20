@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0 — 2026-07-20
+
+- Added host-authoritative collaborative multiplayer controls with Host, Controller, Player and Viewer roles.
+- Added universal Reverse commands, protected-action requests, host approval/rejection and per-device capability grants.
+- Added duplicate processing protection, revision checks, request expiry, command cooldowns and validated bounded Firebase records.
+- Added a live activity log, explicit host transfer and safe host-disconnected waiting/reconnect behavior.
+- Updated Firebase Realtime Database rules, PWA metadata, cache names and architecture documentation.
+
 ## 5.1.0 — 2026-07-20
 
 - Fixed immediate Saved Players lifetime-stat refresh and expanded the profile summary to points, rounds, games and wins.

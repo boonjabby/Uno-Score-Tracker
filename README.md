@@ -1,4 +1,4 @@
-# UNO Direction & Score Tracker v5.1.0
+# UNO Direction & Score Tracker v6.0.0
 
 A lightweight, installable Progressive Web App for tracking play direction, calculating cards left in losing hands, and keeping UNO scores.
 
@@ -17,6 +17,7 @@ A lightweight, installable Progressive Web App for tracking play direction, calc
 - System, light, dark, high-contrast and reduced-motion themes
 - Responsive fullscreen scoreboard and polished winner/rematch flow
 - Firebase live multiplayer with anonymous auth, presence, QR joining and reconnect
+- Collaborative live controls with universal Reverse, host-reviewed requests, per-device permissions, activity log and host transfer
 - In-app update notification when a new service worker is available
 
 ## Run locally
@@ -29,9 +30,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open in Chrome or Safari
+## Publish with GitHub Pages
 
-https://boonjabby.github.io/Uno-Score-Tracker/
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -64,9 +75,9 @@ This is an unofficial companion tool and is not affiliated with or endorsed by M
 Games, profiles and preferences are stored only in this browser unless a host starts a Firebase live room. Profiles use initials or emoji and a preferred colour; uploaded profile photographs and accounts are not used. Browser storage can be cleared by the browser or operating system, so the saved-game library is convenient local persistence rather than a backup service.
 
 
-## Live cross-device viewer mode (v4)
+## Live cross-device multiplayer
 
-Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtime Database. The host has write access; viewers are read-only. A QR join link and a six-character room code are both provided.
+Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtime Database. The host remains authoritative. Players and viewers can submit Reverse immediately and request protected actions; the host can grant narrowly scoped Controller permissions. A QR join link and a six-character room code are both provided.
 
 ### One-time Firebase setup
 
@@ -80,7 +91,8 @@ Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtim
 
 ### Security model
 
-- Only the anonymous Firebase user that created a room can write or delete it.
+- Only the current host can write authoritative game state, review requests, grant permissions, transfer hosting, or delete a room.
+- Joined members can write only their own member/presence record and create immutable commands or request submissions. They cannot directly overwrite game state or approve their own requests.
 - Any authenticated viewer who knows the random room link or six-character code can read that room. Game data contains only names, scores, direction, and round history, so do not enter sensitive personal information.
 - Room codes are convenient access locators, not passwords. End the room when play finishes.
 - The app has no public room listing, chat, passwords, or account profiles.
@@ -140,7 +152,17 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Added a Settings & Sharing toggle for round-history card sprites
 - Replaced the small fullscreen direction pill with a large, labelled UNO-style clockwise/counter-clockwise direction card
 
-See `CHANGELOG.md` for the release summary, `CURRENT-STATE-v4.7.md` for the pre-edit architecture audit, and `ROADMAP.md` for a safe multi-device controller design.
+## Version 6.0 additions
+
+- Added Host, Controller, Player and Viewer roles with a clear role badge on every connected device
+- Made Reverse Direction universally available through validated, immutable Firebase commands with cooldown and duplicate protection
+- Added protected-action requests, a host Pending Actions queue, approval/rejection, stale-request expiry and destructive-action confirmation
+- Added per-device capabilities for scoring, starter, timer, history and game management
+- Added a bounded live activity log for commands, requests, decisions, permission changes and host transfer
+- Added explicit host transfer, reconnect-safe listener cleanup and safe waiting while the host is offline
+- Extended the Firebase room schema and security rules without allowing collaborators to write authoritative game state directly
+
+See `CHANGELOG.md` for the release summary, `CURRENT-STATE-v5.1.md` for the pre-v6 architecture audit, and `ROADMAP.md` for the original multi-device controller design.
 
 ## v4.7 data migration
 
@@ -148,11 +170,11 @@ On first v5 load, the app reads `uno-score-tracker-v5-current` or falls back to 
 
 ## Data model summary
 
-The active game is the authoritative model for names, scores, score baseline, direction, starter, rules, history, timer and settings. Round edits and deletions recompute scores from `scoreBaseline + round changes`; statistics are derived from round history rather than maintained as competing counters. Firebase hosts synchronize a bounded v5 DTO while profiles and the saved-game library remain local.
+The active game is the authoritative model for names, scores, score baseline, direction, starter, rules, history, timer and settings. Round edits and deletions recompute scores from `scoreBaseline + round changes`; statistics are derived from round history rather than maintained as competing counters. Firebase hosts synchronize a bounded v6 DTO while profiles and the saved-game library remain local. Collaborative commands and requests carry the expected game revision and are applied once by the host.
 
 ## Known operational assumptions
 
-- A Firebase live room has one editing host and read-only joined viewers. Unexpected host loss leaves viewers in a waiting state until the same anonymous host session reconnects or the room is explicitly ended.
+- A Firebase live room has one authoritative host. Unexpected host loss leaves commands and requests waiting safely; automatic host election is intentionally not attempted. Use explicit transfer before the host leaves when possible.
 - Room codes locate rooms but are not passwords. Firebase rules and anonymous authentication are the security boundary.
 - Browser local storage is finite and device-local. The app caps the saved library at 100 games and Firebase history at 200 rounds.
 - Wake Lock, Web Share, vibration and clipboard behavior depend on browser support and permission policy.
@@ -160,4 +182,4 @@ The active game is the authoritative model for names, scores, score baseline, di
 
 ## Release checks
 
-Before deployment, validate `firebase-database-rules.json` in the Firebase Emulator Suite or Rules Playground, publish the rules, then test one host and at least one viewer in separate browser profiles. The static project has no build step.
+Before deployment, validate and publish `firebase-database-rules.json`, then test a host, player/viewer and granted controller in separate browser profiles. The static project has no build step. Existing deployed v5 rules must be replaced before v6 collaborative writes will work.

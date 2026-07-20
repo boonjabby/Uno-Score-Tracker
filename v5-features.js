@@ -276,8 +276,8 @@
         cardArea.appendChild(cards); body.appendChild(cardArea);
       }
       const actions = document.createElement('div'); actions.className = 'compact-actions';
-      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit points'; edit.addEventListener('click', async () => { const value = await askText(`Edit round ${round.roundNumber}`, 'Points (0–100000)', String(round.points), 'numeric'); if (value == null) return; const next = Number(value); if (!Number.isInteger(next) || next < 0 || next > 100000) return alert('Enter a whole number from 0 to 100000.'); round.points = next; recalculateScores(); });
-      const del = document.createElement('button'); del.type = 'button'; del.className = 'danger'; del.textContent = 'Delete round'; del.addEventListener('click', () => { if (!confirm(`Delete round ${round.roundNumber} and recalculate all scores?`)) return; state.history = state.history.filter(item => item.id !== round.id); recalculateScores(); });
+      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit points'; edit.addEventListener('click', async () => { const value = await askText(`Edit round ${round.roundNumber}`, 'Points (0–100000)', String(round.points), 'numeric'); if (value == null) return; const next = Number(value); if (!Number.isInteger(next) || next < 0 || next > 100000) return alert('Enter a whole number from 0 to 100000.'); round.points = next; recalculateScores(); window.liveSync?.recordHostAction?.('editRound', { roundId: round.id, points: next }); });
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'danger'; del.textContent = 'Delete round'; del.addEventListener('click', () => { if (!confirm(`Delete round ${round.roundNumber} and recalculate all scores?`)) return; state.history = state.history.filter(item => item.id !== round.id); recalculateScores(); window.liveSync?.recordHostAction?.('deleteRound', { roundId: round.id }); });
       actions.append(edit, del); body.prepend(changes); body.append(actions); item.append(summary, body); elements.historyList.appendChild(item);
     });
   }
@@ -285,6 +285,32 @@
   function undoLastRound() {
     if (!state.history.length || !confirm('Undo the most recently completed round and recalculate all scores?')) return;
     state.history.shift(); state.winnerRecorded = false; state.completedAt = null; recalculateScores(); core.elements.announcement.textContent = 'Last round undone.';
+    window.liveSync?.recordHostAction?.('undoRound', {});
+  }
+
+  function applyCollaborativeAction(type, payload = {}, actor = 'Connected device') {
+    const playerIndex = Math.min(state.names.length - 1, Math.max(0, Number(payload.playerIndex ?? payload.winnerIndex) || 0));
+    if (type === 'reverse') { core.applyDirectionReverse(); return { message: `${actor} reversed direction.` }; }
+    if (type === 'starter') { core.setStarter(payload.starterIndex); return { message: `${actor} changed the starter.` }; }
+    if (['timerStart', 'timerResume'].includes(type)) { core.setTimerAction('start'); return { message: `${actor} started the timer.` }; }
+    if (type === 'timerPause') { core.setTimerAction('pause'); return { message: `${actor} paused the timer.` }; }
+    if (type === 'timerReset') { core.setTimerAction('reset'); return { message: `${actor} reset the timer.` }; }
+    if (type === 'addRound') {
+      const points = number(payload.points, 0, 1, 100000);
+      const now = Date.now(); const before = [...state.scores]; state.scores[playerIndex] += points;
+      state.history.unshift({ id: uid(), roundNumber: state.history.length + 1, winner: state.names[playerIndex], winnerIndex: playerIndex, points, changes: state.names.map((name, index) => ({ name, delta: index === playerIndex ? points : 0, total: state.scores[index] })), totalsBefore: before, resultingTotals: [...state.scores], cards: [], timestamp: now, createdAt: new Date(now).toISOString(), durationMs: state.settings.roundDuration ? Math.max(0, now - (state.history[0]?.timestamp || state.createdAt)) : null, source: 'collaborative', actor });
+      const target = number(elements.targetScore.value, 500, 1, 100000); if (state.scores[playerIndex] >= target) { state.winnerRecorded = true; state.completedAt = now; }
+      recalculateScores(); return { roundId: state.history[0].id, message: `${actor} added ${points} points to ${state.names[playerIndex]}.` };
+    }
+    if (type === 'correctScore') {
+      const next = number(payload.score, 0, 0, 1000000); const historyPoints = state.history.reduce((sum, round) => sum + number(round.changes?.[playerIndex]?.delta), 0); state.scoreBaseline[playerIndex] = Math.max(0, next - historyPoints); recalculateScores(); return { message: `${actor} corrected ${state.names[playerIndex]}'s score to ${next}.` };
+    }
+    if (type === 'undoRound') { if (!state.history.length) throw new Error('There is no round to undo.'); state.history.shift(); state.winnerRecorded = false; state.completedAt = null; recalculateScores(); return { message: `${actor} undid the latest round.` }; }
+    if (type === 'editRound') { const round = state.history.find(item => item.id === payload.roundId); if (!round) throw new Error('That round no longer exists.'); round.points = number(payload.points, round.points, 0, 100000); recalculateScores(); return { message: `${actor} edited round ${round.roundNumber}.` }; }
+    if (type === 'deleteRound') { const round = state.history.find(item => item.id === payload.roundId); if (!round) throw new Error('That round no longer exists.'); state.history = state.history.filter(item => item.id !== round.id); recalculateScores(); return { message: `${actor} deleted round ${round.roundNumber}.` }; }
+    if (type === 'resetGame') { state.scores = state.names.map(() => 0); state.scoreBaseline = state.names.map(() => 0); state.history = []; state.winnerRecorded = false; state.completedAt = null; state.starterIndex = null; state.gameClock = { elapsedMs: 0, running: false, startedAt: null }; core.renderAll(); core.saveState(); return { message: `${actor} reset the game.` }; }
+    if (type === 'endGame') { state.completedAt = Date.now(); state.winnerRecorded = true; core.saveState(); return { message: `${actor} ended the game.` }; }
+    throw new Error('Unsupported action.');
   }
 
   function showWinner() {
@@ -357,6 +383,6 @@
     setInterval(() => { const clock = document.getElementById('presentationClock'); if (clock) clock.textContent = core.formatClock(core.currentClockElapsed()); }, 500);
   }
 
-  window.v5Features = { captureCurrentGame, addProfile, renderProfiles, renderStats, resetStats, renderHistory, showWinner, onRoundCompleted: showWinner, renderPresentation, recalculateScores };
+  window.v5Features = { captureCurrentGame, addProfile, renderProfiles, renderStats, resetStats, renderHistory, showWinner, onRoundCompleted: showWinner, renderPresentation, recalculateScores, applyCollaborativeAction };
   initialize();
 })();

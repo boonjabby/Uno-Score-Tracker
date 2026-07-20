@@ -111,6 +111,52 @@
       </div>
 
       <div id="viewerNotice" class="viewer-notice hidden">👀 Viewer mode — scores and direction update live. Only the host can make changes.</div>
+      <div id="collaborationArea" class="collaboration-area hidden">
+        <div class="collaboration-identity">
+          <label><span>Your display name</span><input id="memberDisplayName" type="text" maxlength="30" placeholder="This device" /></label>
+          <label><span>Join as</span><select id="memberMode"><option value="player">Player</option><option value="viewer">Viewer</option></select></label>
+          <span id="memberRoleBadge" class="role-badge">Viewer</span>
+        </div>
+
+        <div id="memberControls" class="member-controls hidden">
+          <button id="collaborativeReverse" class="primary collaboration-reverse" type="button">↻ Reverse Direction Now</button>
+          <div class="request-builder">
+            <label><span>Request an action</span><select id="requestActionType">
+              <option value="addRound">Add completed round score</option>
+              <option value="correctScore">Correct a score</option>
+              <option value="starter">Change starting player</option>
+              <option value="timerStart">Start timer</option>
+              <option value="timerPause">Pause timer</option>
+              <option value="timerResume">Resume timer</option>
+              <option value="timerReset">Reset timer</option>
+              <option value="undoRound">Undo latest round</option>
+              <option value="editRound">Edit round points</option>
+              <option value="deleteRound">Delete round</option>
+              <option value="endGame">End game</option>
+              <option value="resetGame">Reset game</option>
+            </select></label>
+            <label id="requestPlayerField"><span>Player</span><select id="requestPlayer"></select></label>
+            <label id="requestAmountField"><span id="requestAmountLabel">Points</span><input id="requestAmount" type="number" min="0" max="1000000" step="1" value="1" /></label>
+            <label id="requestRoundField" class="hidden"><span>Round</span><select id="requestRound"></select></label>
+            <button id="submitActionRequest" class="secondary" type="button">Submit Request</button>
+          </div>
+          <p id="requestFeedback" class="note" role="status"></p>
+        </div>
+
+        <details id="pendingActionsPanel" class="collaboration-panel hidden">
+          <summary>Pending Actions <span id="pendingCount" class="pending-badge">0</span></summary>
+          <div id="pendingActionsList" class="collaboration-list"></div>
+        </details>
+        <details id="permissionPanel" class="collaboration-panel hidden">
+          <summary>Device Permissions</summary>
+          <p class="note">Reverse Direction is always available and is not an assignable permission.</p>
+          <div id="permissionList" class="collaboration-list"></div>
+        </details>
+        <details id="activityPanel" class="collaboration-panel">
+          <summary>Live Activity</summary>
+          <div id="activityList" class="activity-list"><p class="note">No live activity yet.</p></div>
+        </details>
+      </div>
       <div id="qrOverlay" class="fullscreen-overlay hidden" role="dialog" aria-modal="true" aria-label="Join live game">
         <button id="closeQrOverlay" class="overlay-close" type="button" aria-label="Close">×</button>
         <p class="eyebrow">Join live game</p><strong id="overlayRoomCode" class="overlay-room-code">------</strong>
@@ -286,7 +332,7 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 5.1.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 6.0.0 · Works offline after first load</footer>
   </main>
 
   <section id="scoreboardPresentation" class="scoreboard-presentation hidden" aria-label="Fullscreen scoreboard"></section>

@@ -1,8 +1,8 @@
-const CACHE_NAME = 'uno-tracker-v5.1.0';
-const RUNTIME_CACHE = 'uno-tracker-runtime-v5.1';
+const CACHE_NAME = 'uno-tracker-v6.0.0';
+const RUNTIME_CACHE = 'uno-tracker-runtime-v6';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.json',
-  './live-sync.js', './v5-features.js', './firebase-config.js', './CHANGELOG.md', './CURRENT-STATE-v4.7.md', './ROADMAP.md', './icons/icon-192.png', './icons/icon-512.png'
+  './live-sync.js', './v5-features.js', './firebase-config.js', './CHANGELOG.md', './CURRENT-STATE-v5.1.md', './ROADMAP.md', './icons/icon-192.png', './icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

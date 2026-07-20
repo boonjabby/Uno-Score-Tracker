@@ -163,6 +163,7 @@ const presets = {
 
 let state = {
   schemaVersion: 5,
+  revision: 0,
   id: '',
   title: 'UNO Game',
   createdAt: Date.now(),
@@ -191,9 +192,11 @@ function isTeamsMode() { return gameType.value === 'teams'; }
 function defaultName(index) { return `${isTeamsMode() ? 'Team' : 'Player'} ${index + 1}`; }
 
 function saveState() {
+  state.revision = Math.max(0, Number(state.revision) || 0) + 1;
   state.updatedAt = Date.now();
   const data = {
     schemaVersion: 5,
+    revision: state.revision,
     id: state.id,
     title: state.title,
     createdAt: state.createdAt,
@@ -237,6 +240,7 @@ function loadState() {
     targetScore.value = Math.min(100000, Math.max(1, Number(saved.targetScore) || presets[gameType.value].target));
     state._legacyMigration = Number(saved.schemaVersion) !== 5;
     state.schemaVersion = 5;
+    state.revision = Math.max(0, Number(saved.revision) || 0);
     state.id = String(saved.id || '');
     state.title = String(saved.title || 'UNO Game').slice(0, 60);
     state.createdAt = Number(saved.createdAt) || Date.now();
@@ -354,6 +358,7 @@ function launchConfetti() {
 }
 
 function chooseRandomStarter() {
+  if (window.liveSync?.isConnected?.() && window.liveSync?.isViewer?.()) return window.liveSync.requestAction?.('starter', { starterIndex: Math.floor(Math.random() * state.names.length) });
   if (!state.names.length) return;
   const index = Math.floor(Math.random() * state.names.length);
   state.starterIndex = index;
@@ -364,6 +369,7 @@ function chooseRandomStarter() {
   if (state.settings.vibration && navigator.vibrate) navigator.vibrate([45, 35, 45]);
   playTone(620, 0.12);
   saveState();
+  window.liveSync?.recordHostAction?.('starter', { starterIndex: index });
 }
 
 async function shareSnapshot() {
@@ -685,6 +691,7 @@ function awardRound() {
   renderProfiles();
   saveState();
   window.v5Features?.onRoundCompleted?.(state.history[0]);
+  window.liveSync?.recordHostAction?.('addRound', { winnerIndex, points: total, roundId: state.history[0].id });
   announcement.textContent = `${winnerName} received ${total} points.`;
   setTimeout(() => { awardRound.submitting = false; }, 300);
 }
@@ -768,13 +775,18 @@ function updateDirection() {
   announcement.textContent = `Direction is ${state.clockwise ? 'clockwise' : 'counter-clockwise'}.`;
 }
 
-function reverseDirection() {
+function applyDirectionReverse() {
   pushUndo('reverse direction');
   state.clockwise = !state.clockwise;
   updateDirection();
   saveState();
   if (state.settings.vibration && navigator.vibrate) navigator.vibrate(40);
   playTone(state.clockwise ? 520 : 420, 0.08);
+}
+
+function reverseDirection() {
+  if (window.liveSync?.isConnected?.() && !window.liveSync?.isApplyingCommand?.()) return window.liveSync.submitReverse?.();
+  applyDirectionReverse();
 }
 
 function updateLeader() {
@@ -812,6 +824,7 @@ function resetGame() {
   renderHistory();
   saveState();
   announcement.textContent = 'New game started. Scores and round history reset.';
+  window.liveSync?.recordHostAction?.('resetGame', {});
 }
 
 let clockInterval = null;
@@ -850,12 +863,14 @@ function toggleGameClock() {
     state.gameClock.running = true;
   }
   renderGameClock(); saveState();
+  window.liveSync?.recordHostAction?.(state.gameClock.running ? 'timerStart' : 'timerPause', {});
 }
 
 function resetGameClock() {
   if (currentClockElapsed() > 0 && !confirm('Reset the game timer?')) return;
   state.gameClock = { elapsedMs: 0, running: false, startedAt: null };
   renderGameClock(); saveState();
+  window.liveSync?.recordHostAction?.('timerReset', {});
 }
 
 async function toggleWakeLock() {
@@ -885,7 +900,8 @@ function renderAll() {
 
 window.getLiveGameState = function getLiveGameState() {
   return {
-    version: 5,
+    version: 6,
+    revision: state.revision,
     id: state.id,
     title: state.title,
     createdAt: state.createdAt,
@@ -922,6 +938,7 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   while (state.scores.length < Number(participantCount.value)) state.scores.push(0);
   state.clockwise = live.clockwise !== false;
   state.history = Array.isArray(live.history) ? live.history.slice(0, 50) : [];
+  state.revision = Math.max(0, Number(live.revision) || 0);
   state.id = String(live.id || state.id || '');
   state.title = String(live.title || state.title || 'UNO Game').slice(0, 60);
   state.createdAt = Number(live.createdAt) || state.createdAt || Date.now();
@@ -977,7 +994,17 @@ window.unoCore = {
   state,
   elements: { gameType, participantCount, targetScore, historyList, profileList, profileName, profileAvatar, profileColour, statsGrid, playerStats, roundWinner, announcement },
   saveState, renderAll, renderScoreboard, renderHistory, renderProfiles, renderStats, renderGameClock, currentClockElapsed, formatClock, clearCards, updateLeader,
-  applyTheme, spriteMarkup,
+  applyTheme, spriteMarkup, applyDirectionReverse,
+  setStarter: index => {
+    const safe = Math.min(state.names.length - 1, Math.max(0, Number(index) || 0));
+    state.starterIndex = safe; starterCallout.textContent = `🎲 ${state.names[safe]} starts this round!`; starterCallout.classList.remove('hidden'); saveState(); renderAll();
+  },
+  setTimerAction: action => {
+    if (action === 'reset') { state.gameClock = { elapsedMs: 0, running: false, startedAt: null }; }
+    else if (action === 'start' || action === 'resume') { if (!state.gameClock.running) { state.gameClock.startedAt = window.liveSync?.serverNow?.() ?? Date.now(); state.gameClock.running = true; } }
+    else if (action === 'pause' && state.gameClock.running) { state.gameClock.elapsedMs = currentClockElapsed(); state.gameClock.running = false; state.gameClock.startedAt = null; }
+    renderGameClock(); saveState();
+  },
   serialize: () => window.getLiveGameState()
 };
 
