@@ -30,19 +30,9 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Publish with GitHub Pages
+## Open on Chrome or Safari
 
-1. Create a new GitHub repository.
-2. Upload every file and folder from this project, including `.github`.
-3. Open **Settings → Pages**.
-4. Under **Build and deployment**, select **GitHub Actions**.
-5. Push to the `main` branch. The included workflow publishes the app automatically.
-
-Your public address will normally be:
-
-```text
-https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
-```
+https://boonjabby.github.io/Uno-Score-Tracker/
 
 ## Install on a phone
 
