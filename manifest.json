@@ -1,0 +1,25 @@
+{
+  "name": "UNO Direction & Score Tracker",
+  "short_name": "UNO Tracker",
+  "description": "Track UNO direction, calculate round points and keep scores.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f4f6",
+  "theme_color": "#d71920",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

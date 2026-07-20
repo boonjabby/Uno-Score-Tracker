@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#d71920" />
+  <meta name="description" content="UNO direction tracker, score keeper and card-point calculator." />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>UNO Score Tracker</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">UNO companion</p>
+        <h1>Direction & Score Tracker</h1>
+      </div>
+      <div class="header-actions">
+        <button id="themeButton" class="secondary icon-button" type="button" aria-label="Toggle dark mode">🌙</button>
+        <button id="installButton" class="secondary hidden" type="button">Install App</button>
+      </div>
+    </header>
+
+    <section class="panel settings-grid">
+      <label>
+        <span>UNO version</span>
+        <select id="gameType">
+          <option value="classic">UNO Classic</option>
+          <option value="teams">UNO Teams</option>
+          <option value="flipLight">UNO Flip — Light Side</option>
+          <option value="flipDark">UNO Flip — Dark Side</option>
+          <option value="allWild">UNO All Wild</option>
+          <option value="flex">UNO Flex</option>
+          <option value="noMercy">UNO Show ’Em No Mercy</option>
+          <option value="custom">Custom / House Rules</option>
+        </select>
+      </label>
+
+      <label>
+        <span id="participantLabel">Players</span>
+        <select id="participantCount">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Points to win</span>
+        <input id="targetScore" type="number" min="1" step="25" value="500" />
+      </label>
+
+      <p id="gameNote" class="note"></p>
+    </section>
+
+    <section class="direction-stage panel">
+      <button id="reverseButton" class="direction-card" type="button" aria-label="Reverse direction">
+        <span class="direction-oval"></span>
+        <span id="directionSymbol" class="direction-symbol">↻</span>
+        <span id="directionLabel" class="direction-label">Clockwise</span>
+      </button>
+      <button id="reverseAction" class="primary full" type="button">Reverse Direction</button>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Round calculator</p>
+          <h2>Cards left in losing hands</h2>
+        </div>
+        <button id="clearCards" class="secondary" type="button">Clear Cards</button>
+      </div>
+
+      <label>
+        <span>Round winner</span>
+        <select id="roundWinner"></select>
+      </label>
+
+      <div class="calculator-heading">
+        <span>Tap each remaining card</span>
+        <strong id="calculatorTotal">0 points</strong>
+      </div>
+
+      <div id="cardButtons" class="card-grid"></div>
+
+      <div id="roundSummary" class="summary">No cards selected.</div>
+
+      <div class="button-row">
+        <button id="undoCard" class="secondary" type="button">Undo Last Card</button>
+        <button id="awardRound" class="primary" type="button">Award Round Points</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Scoreboard</p>
+          <h2>Scores</h2>
+          <p id="leaderText" class="note">All players are tied on 0.</p>
+        </div>
+        <button id="resetGame" class="danger" type="button">New Game</button>
+      </div>
+      <div id="scoreboard"></div>
+      <div id="winnerCallout" class="winner hidden" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Match log</p>
+          <h2>Round history</h2>
+        </div>
+        <button id="clearHistory" class="secondary" type="button">Clear History</button>
+      </div>
+      <div id="historyList" class="history-list"><p class="note">No rounds recorded yet.</p></div>
+    </section>
+
+    <details class="panel">
+      <summary>Edit card point values</summary>
+      <p class="note">Adjust these for your deck or house rules.</p>
+      <div id="valueEditor" class="value-grid"></div>
+    </details>
+
+    <div id="updateBanner" class="update-banner hidden" role="status">
+      <span>A new version is ready.</span>
+      <button id="reloadApp" class="primary" type="button">Update now</button>
+    </div>
+    <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
+    <footer class="app-footer">Version 2.0.0 · Works offline after first load</footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
