@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.1.0 — 2026-07-20
+
+- Fixed immediate Saved Players lifetime-stat refresh and expanded the profile summary to points, rounds, games and wins.
+- Added optional card sprites and point subtotals to each round-history entry.
+- Added a large, unmistakable labelled direction card to fullscreen scoreboard mode.
+
 ## 5.0.0 — 2026-07-20
 
 - Added editable, deletable, undoable round history with per-player deltas, totals, timestamps, round numbers, and durations.

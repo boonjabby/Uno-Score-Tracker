@@ -53,7 +53,10 @@
         changes: names.map((name, playerIndex) => ({ name, delta: playerIndex === winnerIndex ? points : 0, total: number(raw.resultingTotals?.[playerIndex] ?? raw.changes?.[playerIndex]?.total) })),
         totalsBefore: Array.isArray(raw.totalsBefore) ? raw.totalsBefore.map(v => number(v)) : [],
         resultingTotals: Array.isArray(raw.resultingTotals) ? raw.resultingTotals.map(v => number(v)) : [],
-        cards: Array.isArray(raw.cards) ? raw.cards.slice(0, 100).map(card => ({ label: text(card.label, 'Card', 30), count: number(card.count, 0, 0, 999) })) : [],
+        cards: Array.isArray(raw.cards) ? raw.cards.slice(0, 100).map(card => {
+          const known = state.activeCards.find(item => item.id === card.id || item.label === card.label) || {};
+          return { id: text(card.id || known.id, '', 40), label: text(card.label || known.label, 'Card', 30), count: number(card.count, 0, 0, 999), value: number(card.value ?? known.value, 0, 0, 100000), sprite: text(card.sprite ?? known.sprite, '?', 10), color: /^#[0-9a-f]{6}$/i.test(card.color) ? card.color : known.color || '#d71920' };
+        }) : [],
         timestamp, createdAt: new Date(timestamp).toISOString(), durationMs: raw.durationMs == null ? null : number(raw.durationMs)
       };
     });
@@ -84,6 +87,7 @@
     core.renderScoreboard();
     renderHistory();
     renderStats();
+    renderProfiles();
     renderPresentation();
     if (save) core.saveState();
   }
@@ -172,7 +176,7 @@
   function renderProfiles() {
     const derived = deriveStatistics();
     state.profiles = normalizeProfiles(readJson(PROFILES_KEY, state.profiles)).map(profile => {
-      const stats = derived.players[profile.name] || {};
+      const stats = Object.entries(derived.players).find(([name]) => name.toLocaleLowerCase() === profile.name.toLocaleLowerCase())?.[1] || {};
       return { ...profile, wins: stats.wins || 0, gamesPlayed: stats.gamesPlayed || 0, lifetime: stats };
     });
     writeJson(PROFILES_KEY, state.profiles);
@@ -182,7 +186,10 @@
       const card = document.createElement('article'); card.className = 'profile-card'; card.style.setProperty('--profile-colour', profile.colour);
       const use = document.createElement('button'); use.type = 'button'; use.className = 'profile-use'; use.setAttribute('aria-label', `Use ${profile.name}`);
       const avatar = document.createElement('span'); avatar.className = 'profile-avatar'; avatar.textContent = profile.avatar;
-      const info = document.createElement('span'); info.innerHTML = `<strong></strong><small>${profile.wins} wins · ${profile.gamesPlayed} games</small>`; info.querySelector('strong').textContent = profile.name; use.append(avatar, info);
+      const info = document.createElement('span');
+      const lifetime = profile.lifetime || {};
+      info.innerHTML = `<strong></strong><small>${lifetime.points || 0} pts · ${lifetime.rounds || 0} rounds · ${profile.gamesPlayed} games · ${profile.wins} wins</small>`;
+      info.querySelector('strong').textContent = profile.name; use.append(avatar, info);
       use.addEventListener('click', () => { const slot = state.names.findIndex((name, index) => name === `Player ${index + 1}` || name === `Team ${index + 1}`); state.names[slot >= 0 ? slot : 0] = profile.name; core.renderScoreboard(); core.saveState(); });
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'profile-remove'; remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete profile ${profile.name}`); remove.addEventListener('click', () => { if (!confirm(`Delete the local profile for ${profile.name}?`)) return; state.profiles = state.profiles.filter(item => item.id !== profile.id); writeJson(PROFILES_KEY, state.profiles); renderProfiles(); core.saveState(); });
       card.append(use, remove); elements.profileList.appendChild(card);
@@ -257,10 +264,21 @@
       const points = document.createElement('span'); points.className = 'history-points'; points.textContent = `+${round.points}`; summary.append(label, points);
       const body = document.createElement('div'); body.className = 'history-detail';
       const changes = document.createElement('ul'); round.changes.forEach(change => { const li = document.createElement('li'); li.textContent = `${change.name}: ${change.delta >= 0 ? '+' : ''}${change.delta} → ${change.total}`; changes.appendChild(li); });
+      if (round.cards.length) {
+        const cardArea = document.createElement('div'); cardArea.className = 'round-card-area';
+        const cardHeading = document.createElement('strong'); cardHeading.textContent = 'Cards remaining'; cardArea.appendChild(cardHeading);
+        const cards = document.createElement('div'); cards.className = `round-cards${state.settings.roundCardSprites ? '' : ' text-only'}`;
+        round.cards.forEach(card => {
+          const group = document.createElement('div'); group.className = 'round-card-group';
+          if (state.settings.roundCardSprites) group.innerHTML = core.spriteMarkup(card);
+          const caption = document.createElement('span'); caption.textContent = `${card.count}× ${card.label}${card.value ? ` · ${card.count * card.value} pts` : ''}`; group.appendChild(caption); cards.appendChild(group);
+        });
+        cardArea.appendChild(cards); body.appendChild(cardArea);
+      }
       const actions = document.createElement('div'); actions.className = 'compact-actions';
       const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit points'; edit.addEventListener('click', async () => { const value = await askText(`Edit round ${round.roundNumber}`, 'Points (0–100000)', String(round.points), 'numeric'); if (value == null) return; const next = Number(value); if (!Number.isInteger(next) || next < 0 || next > 100000) return alert('Enter a whole number from 0 to 100000.'); round.points = next; recalculateScores(); });
       const del = document.createElement('button'); del.type = 'button'; del.className = 'danger'; del.textContent = 'Delete round'; del.addEventListener('click', () => { if (!confirm(`Delete round ${round.roundNumber} and recalculate all scores?`)) return; state.history = state.history.filter(item => item.id !== round.id); recalculateScores(); });
-      actions.append(edit, del); body.append(changes, actions); item.append(summary, body); elements.historyList.appendChild(item);
+      actions.append(edit, del); body.prepend(changes); body.append(actions); item.append(summary, body); elements.historyList.appendChild(item);
     });
   }
 
@@ -300,7 +318,7 @@
     const connected = liveMeta.connected ?? 1;
     const showQr = Boolean(state.settings.scoreboardQr && liveMeta.roomCode);
     root.dataset.players = String(state.names.length);
-    root.innerHTML = `<header><div><p class="eyebrow">${text(state.title, 'UNO Game')}</p><h2>Round ${state.history.length + 1}</h2></div><div class="presentation-meta"><span>🎲 ${state.starterIndex == null ? 'Starter not chosen' : text(state.names[state.starterIndex])}</span><span>${state.clockwise ? '↻ Clockwise' : '↺ Counter-clockwise'}</span><span>⏱ <b id="presentationClock">${core.formatClock(core.currentClockElapsed())}</b></span><span>👥 ${connected}</span></div></header><div class="presentation-scores"></div><div id="presentationQr" class="presentation-qr ${showQr ? '' : 'hidden'}"></div>`;
+    root.innerHTML = `<header><div><p class="eyebrow">${text(state.title, 'UNO Game')}</p><h2>Round ${state.history.length + 1}</h2></div><div class="presentation-meta"><span>🎲 ${state.starterIndex == null ? 'Starter not chosen' : text(state.names[state.starterIndex])}</span><span>⏱ <b id="presentationClock">${core.formatClock(core.currentClockElapsed())}</b></span><span>👥 ${connected}</span></div></header><div class="presentation-direction-card ${state.clockwise ? 'clockwise' : 'counterclockwise'}" role="status" aria-label="Current direction: ${state.clockwise ? 'clockwise' : 'counter-clockwise'}"><span class="presentation-direction-oval"></span><b>${state.clockwise ? '↻' : '↺'}</b><strong>${state.clockwise ? 'CLOCKWISE' : 'COUNTER-CLOCKWISE'}</strong></div><div class="presentation-scores"></div><div id="presentationQr" class="presentation-qr ${showQr ? '' : 'hidden'}"></div>`;
     const scores = root.querySelector('.presentation-scores');
     state.names.forEach((name, index) => { const card = document.createElement('article'); card.innerHTML = `<span class="score-place">${index + 1}</span><strong></strong><b>${state.scores[index]}</b>`; card.querySelector('strong').textContent = name; if (index === state.starterIndex) card.setAttribute('aria-label', `${name}, current starter, ${state.scores[index]} points`); scores.appendChild(card); });
     if (showQr) window.liveSync?.renderPresentationQr?.(root.querySelector('#presentationQr'));
@@ -317,11 +335,11 @@
 
   function bindPreferences() {
     const controls = {
-      highContrast: document.getElementById('highContrast'), reducedMotion: document.getElementById('reducedMotion'), confetti: document.getElementById('confettiEnabled'), vibration: document.getElementById('vibrationEnabled'), scoreboardQr: document.getElementById('scoreboardQrEnabled'), roundDuration: document.getElementById('roundDurationEnabled')
+      highContrast: document.getElementById('highContrast'), reducedMotion: document.getElementById('reducedMotion'), confetti: document.getElementById('confettiEnabled'), vibration: document.getElementById('vibrationEnabled'), scoreboardQr: document.getElementById('scoreboardQrEnabled'), roundDuration: document.getElementById('roundDurationEnabled'), roundCardSprites: document.getElementById('roundCardSpritesEnabled')
     };
     const theme = document.getElementById('themeSelect'); theme.value = ['system', 'light', 'dark'].includes(state.theme) ? state.theme : 'system';
     theme.addEventListener('change', () => { state.theme = theme.value; core.applyTheme(); core.saveState(); });
-    Object.entries(controls).forEach(([key, control]) => { control.checked = Boolean(state.settings[key]); control.addEventListener('change', () => { state.settings[key] = control.checked; core.applyTheme(); core.saveState(); }); });
+    Object.entries(controls).forEach(([key, control]) => { control.checked = Boolean(state.settings[key]); control.addEventListener('change', () => { state.settings[key] = control.checked; core.applyTheme(); if (key === 'roundCardSprites') renderHistory(); if (key === 'scoreboardQr') renderPresentation(); core.saveState(); }); });
   }
 
   function initialize() {

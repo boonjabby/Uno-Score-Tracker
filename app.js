@@ -180,7 +180,7 @@ let state = {
   profiles: [],
   starterIndex: null,
   scoreBaseline: [],
-  settings: { highContrast: false, reducedMotion: false, confetti: true, vibration: true, scoreboardQr: false, roundDuration: true },
+  settings: { highContrast: false, reducedMotion: false, confetti: true, vibration: true, scoreboardQr: false, roundDuration: true, roundCardSprites: true },
   stats: { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} },
   undoStack: [],
   winnerRecorded: false,
@@ -644,7 +644,7 @@ function awardRound() {
   const winnerName = state.names[winnerIndex];
   const cardsAwarded = state.activeCards
     .filter(card => state.selected[card.id])
-    .map(card => ({ label: card.label, count: state.selected[card.id] }));
+    .map(card => ({ id: card.id, label: card.label, count: state.selected[card.id], value: card.value, sprite: card.sprite, color: card.color }));
   const now = Date.now();
   const previousAt = state.history.length ? Number(state.history[0].timestamp || Date.parse(state.history[0].createdAt)) : state.createdAt;
   state.history.unshift({
@@ -682,6 +682,7 @@ function awardRound() {
   clearCards();
   renderHistory();
   renderStats();
+  renderProfiles();
   saveState();
   window.v5Features?.onRoundCompleted?.(state.history[0]);
   announcement.textContent = `${winnerName} received ${total} points.`;
@@ -976,7 +977,7 @@ window.unoCore = {
   state,
   elements: { gameType, participantCount, targetScore, historyList, profileList, profileName, profileAvatar, profileColour, statsGrid, playerStats, roundWinner, announcement },
   saveState, renderAll, renderScoreboard, renderHistory, renderProfiles, renderStats, renderGameClock, currentClockElapsed, formatClock, clearCards, updateLeader,
-  applyTheme,
+  applyTheme, spriteMarkup,
   serialize: () => window.getLiveGameState()
 };
 

@@ -1,4 +1,4 @@
-# UNO Direction & Score Tracker v5.0.0
+# UNO Direction & Score Tracker v5.1.0
 
 A lightweight, installable Progressive Web App for tracking play direction, calculating cards left in losing hands, and keeping UNO scores.
 
@@ -142,7 +142,15 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Hardened listener cleanup, offline/reconnect status, duplicate-round prevention, client validation and Firebase Database rules
 - Scoped cache cleanup and runtime caching for dependency-light offline use
 
-See `CHANGELOG.md` for the release summary and `CURRENT-STATE-v4.7.md` for the pre-edit architecture audit.
+
+## Version 5.1 additions
+
+- Fixed Saved Players cards so lifetime points, rounds, games and wins refresh immediately after round awards, edits, deletions and undo
+- Added optional UNO-style card sprites and card-point subtotals to expandable round-history records
+- Added a Settings & Sharing toggle for round-history card sprites
+- Replaced the small fullscreen direction pill with a large, labelled UNO-style clockwise/counter-clockwise direction card
+
+See `CHANGELOG.md` for the release summary, `CURRENT-STATE-v4.7.md` for the pre-edit architecture audit, and `ROADMAP.md` for a safe multi-device controller design.
 
 ## v4.7 data migration
 

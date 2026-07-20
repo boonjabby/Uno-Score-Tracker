@@ -10,7 +10,7 @@
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
-  <title>UNO Score Tracker 5</title>
+  <title>UNO Score Tracker 5.1</title>
 </head>
 <body>
   <main class="app-shell">
@@ -255,6 +255,7 @@
         <label class="toggle-label"><input id="vibrationEnabled" type="checkbox" checked /><span>Vibration</span></label>
         <label class="toggle-label"><input id="scoreboardQrEnabled" type="checkbox" /><span>Show join QR on fullscreen scoreboard</span></label>
         <label class="toggle-label"><input id="roundDurationEnabled" type="checkbox" checked /><span>Record round duration</span></label>
+        <label class="toggle-label"><input id="roundCardSpritesEnabled" type="checkbox" checked /><span>Show card sprites in round history</span></label>
       </div>
     </details>
 
@@ -285,7 +286,7 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 5.0.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 5.1.0 · Works offline after first load</footer>
   </main>
 
   <section id="scoreboardPresentation" class="scoreboard-presentation hidden" aria-label="Fullscreen scoreboard"></section>
