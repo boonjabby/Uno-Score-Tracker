@@ -29,6 +29,8 @@ const soundButton = $('soundButton');
 const soundIcon = $('soundIcon');
 const starterCallout = $('starterCallout');
 const profileName = $('profileName');
+const profileAvatar = $('profileAvatar');
+const profileColour = $('profileColour');
 const addProfileButton = $('addProfile');
 const profileList = $('profileList');
 const statsGrid = $('statsGrid');
@@ -42,9 +44,9 @@ const toggleGameClockButton = $('toggleGameClock');
 const resetGameClockButton = $('resetGameClock');
 const keepAwakeButton = $('keepAwakeButton');
 
-const STORAGE_KEY = 'uno-score-tracker-v4';
+const STORAGE_KEY = 'uno-score-tracker-v5-current';
 const SECTION_STATE_KEY = 'uno-section-state-v1';
-const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v3', 'uno-score-tracker-v2', 'uno-score-tracker-v1'];
+const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v4', 'uno-score-tracker-v3', 'uno-score-tracker-v2', 'uno-score-tracker-v1'];
 let deferredPrompt = null;
 
 const colours = ['#d71920', '#177bd1', '#2ca24c', '#f2b900'];
@@ -160,6 +162,12 @@ const presets = {
 };
 
 let state = {
+  schemaVersion: 5,
+  id: '',
+  title: 'UNO Game',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  completedAt: null,
   clockwise: true,
   names: [],
   scores: [],
@@ -170,6 +178,9 @@ let state = {
   theme: 'system',
   sound: true,
   profiles: [],
+  starterIndex: null,
+  scoreBaseline: [],
+  settings: { highContrast: false, reducedMotion: false, confetti: true, vibration: true, scoreboardQr: false, roundDuration: true },
   stats: { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} },
   undoStack: [],
   winnerRecorded: false,
@@ -180,7 +191,14 @@ function isTeamsMode() { return gameType.value === 'teams'; }
 function defaultName(index) { return `${isTeamsMode() ? 'Team' : 'Player'} ${index + 1}`; }
 
 function saveState() {
+  state.updatedAt = Date.now();
   const data = {
+    schemaVersion: 5,
+    id: state.id,
+    title: state.title,
+    createdAt: state.createdAt,
+    updatedAt: state.updatedAt,
+    completedAt: state.completedAt,
     gameType: gameType.value,
     participantCount: participantCount.value,
     targetScore: targetScore.value,
@@ -192,27 +210,46 @@ function saveState() {
     theme: state.theme,
     sound: state.sound,
     profiles: state.profiles,
+    starterIndex: state.starterIndex,
+    scoreBaseline: state.scoreBaseline,
+    settings: state.settings,
     stats: state.stats,
     winnerRecorded: state.winnerRecorded,
     gameClock: state.gameClock
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  window.v5Features?.captureCurrentGame?.();
   window.liveSync?.hostStateChanged?.();
 }
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || LEGACY_STORAGE_KEYS.map(key => localStorage.getItem(key)).find(Boolean);
-    const saved = JSON.parse(raw);
+    let saved = null;
+    for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try { const candidate = JSON.parse(raw); if (candidate && typeof candidate === 'object') { saved = candidate; break; } }
+      catch { try { localStorage.setItem(`uno-corrupt-backup-${Date.now()}`, raw); } catch {} }
+    }
     if (!saved) return false;
     gameType.value = saved.gameType || 'classic';
     participantCount.value = saved.participantCount || '4';
-    targetScore.value = saved.targetScore || presets[gameType.value].target;
+    targetScore.value = Math.min(100000, Math.max(1, Number(saved.targetScore) || presets[gameType.value].target));
+    state._legacyMigration = Number(saved.schemaVersion) !== 5;
+    state.schemaVersion = 5;
+    state.id = String(saved.id || '');
+    state.title = String(saved.title || 'UNO Game').slice(0, 60);
+    state.createdAt = Number(saved.createdAt) || Date.now();
+    state.updatedAt = Number(saved.updatedAt) || Date.now();
+    state.completedAt = Number(saved.completedAt) || null;
     state.clockwise = saved.clockwise !== false;
     state.history = Array.isArray(saved.history) ? saved.history : [];
     state.theme = saved.theme || 'system';
     state.sound = saved.sound !== false;
     state.profiles = Array.isArray(saved.profiles) ? saved.profiles : [];
+    state.starterIndex = Number.isInteger(saved.starterIndex) ? saved.starterIndex : null;
+    state.scoreBaseline = Array.isArray(saved.scoreBaseline) ? saved.scoreBaseline.map(v => Math.max(0, Number(v) || 0)) : [];
+    state.settings = { ...state.settings, ...(saved.settings && typeof saved.settings === 'object' ? saved.settings : {}) };
     state.stats = saved.stats && typeof saved.stats === 'object' ? saved.stats : state.stats;
     state.stats.players ||= {};
     state.winnerRecorded = saved.winnerRecorded === true;
@@ -233,7 +270,6 @@ function loadState() {
     return true;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
-    LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
     return false;
   }
 }
@@ -248,9 +284,12 @@ function cloneSnapshot(label) {
     selected: { ...state.selected },
     cardHistory: [...state.cardHistory],
     history: JSON.parse(JSON.stringify(state.history)),
+    scoreBaseline: [...state.scoreBaseline],
+    starterIndex: state.starterIndex,
+    completedAt: state.completedAt,
     stats: JSON.parse(JSON.stringify(state.stats)),
     winnerRecorded: state.winnerRecorded,
-    gameClock: state.gameClock
+    gameClock: { ...state.gameClock }
   };
 }
 
@@ -299,6 +338,7 @@ function updateSoundButton() {
 }
 
 function launchConfetti() {
+  if (state.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   confettiLayer.innerHTML = '';
   const symbols = ['◆','●','▲','■','★'];
   for (let i = 0; i < 70; i += 1) {
@@ -316,12 +356,14 @@ function launchConfetti() {
 function chooseRandomStarter() {
   if (!state.names.length) return;
   const index = Math.floor(Math.random() * state.names.length);
+  state.starterIndex = index;
   const name = state.names[index];
   starterCallout.textContent = `🎲 ${name} starts this round!`;
   starterCallout.classList.remove('hidden');
-  starterCallout.animate([{ transform: 'scale(.92)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 260, easing: 'ease-out' });
-  if (navigator.vibrate) navigator.vibrate([45, 35, 45]);
+  if (!state.settings.reducedMotion && !matchMedia('(prefers-reduced-motion: reduce)').matches) starterCallout.animate([{ transform: 'scale(.92)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 260, easing: 'ease-out' });
+  if (state.settings.vibration && navigator.vibrate) navigator.vibrate([45, 35, 45]);
   playTone(620, 0.12);
+  saveState();
 }
 
 async function shareSnapshot() {
@@ -345,8 +387,15 @@ function importSnapshotFromHash() {
     gameType.value = presets[data.gameType] ? data.gameType : 'classic';
     participantCount.value = String(Math.min(10, Math.max(2, data.names.length)));
     applyPreset(false);
-    state.names = data.names.slice(0, 10);
+    state.names = data.names.slice(0, 10).map((name, index) => String(name || defaultName(index)).replace(/[<>\u0000-\u001f]/g, '').slice(0, 30) || defaultName(index));
     state.scores = data.scores.slice(0, 10).map(v => Math.max(0, Number(v) || 0));
+    state.id = `${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+    state.title = 'Shared UNO Snapshot';
+    state.createdAt = Date.now();
+    state.completedAt = null;
+    state.history = [];
+    state.scoreBaseline = [...state.scores];
+    state.starterIndex = null;
     state.clockwise = data.clockwise !== false;
     renderAll();
     saveState();
@@ -356,6 +405,7 @@ function importSnapshotFromHash() {
 }
 
 function addProfile() {
+  if (window.v5Features?.addProfile) return window.v5Features.addProfile();
   const name = profileName.value.trim();
   if (!name) return;
   if (!state.profiles.some(p => p.toLowerCase() === name.toLowerCase())) state.profiles.push(name);
@@ -365,6 +415,7 @@ function addProfile() {
 }
 
 function renderProfiles() {
+  if (window.v5Features?.renderProfiles) return window.v5Features.renderProfiles();
   profileList.innerHTML = '';
   if (!state.profiles.length) {
     profileList.innerHTML = '<p class="note">No saved players yet.</p>';
@@ -396,6 +447,7 @@ function ensurePlayerStats(name) {
 }
 
 function renderStats() {
+  if (window.v5Features?.renderStats) return window.v5Features.renderStats();
   const stats = state.stats;
   const entries = Object.entries(stats.players || {});
   const mostRounds = entries.sort((a,b) => b[1].roundsWon - a[1].roundsWon)[0];
@@ -410,6 +462,7 @@ function renderStats() {
 }
 
 function resetStats() {
+  if (window.v5Features?.resetStats) return window.v5Features.resetStats();
   if (!confirm('Reset all lifetime statistics? Current scores will remain.')) return;
   state.stats = { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} };
   renderStats(); saveState();
@@ -421,6 +474,7 @@ function rebuildParticipants(preserve = true) {
   const oldScores = [...state.scores];
   state.names = Array.from({ length: count }, (_, i) => preserve && oldNames[i] ? oldNames[i] : defaultName(i));
   state.scores = Array.from({ length: count }, (_, i) => preserve && Number.isFinite(oldScores[i]) ? oldScores[i] : 0);
+  state.scoreBaseline = Array.from({ length: count }, (_, i) => preserve && Number.isFinite(state.scoreBaseline[i]) ? state.scoreBaseline[i] : 0);
   renderScoreboard();
   saveState();
 }
@@ -438,10 +492,11 @@ function renderScoreboard() {
     nameLabel.innerHTML = `<span>${isTeamsMode() ? 'Team' : 'Player'} ${index + 1}</span>`;
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
+    nameInput.maxLength = 30;
     nameInput.value = name;
     nameInput.addEventListener('focus', () => pushUndo('edit player name'), { once: true });
     nameInput.addEventListener('input', () => {
-      state.names[index] = nameInput.value.trim() || defaultName(index);
+      state.names[index] = nameInput.value.replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 30) || defaultName(index);
       updateWinnerOptions(roundWinner.value);
       updateLeader();
       saveState();
@@ -453,11 +508,14 @@ function renderScoreboard() {
     const scoreInput = document.createElement('input');
     scoreInput.type = 'number';
     scoreInput.min = '0';
+    scoreInput.max = '1000000';
     scoreInput.step = '1';
     scoreInput.value = state.scores[index];
     scoreInput.addEventListener('focus', () => pushUndo('edit score'), { once: true });
     scoreInput.addEventListener('input', () => {
-      state.scores[index] = Math.max(0, Number(scoreInput.value) || 0);
+      state.scores[index] = Math.min(1000000, Math.max(0, Math.round(Number(scoreInput.value) || 0)));
+      const historyPoints = state.history.reduce((sum, round) => sum + (Number(round.changes?.[index]?.delta) || (round.winnerIndex === index ? Number(round.points) || 0 : 0)), 0);
+      state.scoreBaseline[index] = Math.max(0, state.scores[index] - historyPoints);
       updateLeader();
       saveState();
     });
@@ -572,24 +630,36 @@ function undoCard() {
 }
 
 function awardRound() {
+  if (awardRound.submitting) return;
   const total = calculateRound();
   const winnerIndex = Number(roundWinner.value);
   if (!total) {
     announcement.textContent = 'Select at least one remaining card first.';
     return;
   }
+  awardRound.submitting = true;
   pushUndo('award round points');
+  const before = [...state.scores];
   state.scores[winnerIndex] += total;
   const winnerName = state.names[winnerIndex];
   const cardsAwarded = state.activeCards
     .filter(card => state.selected[card.id])
     .map(card => ({ label: card.label, count: state.selected[card.id] }));
+  const now = Date.now();
+  const previousAt = state.history.length ? Number(state.history[0].timestamp || Date.parse(state.history[0].createdAt)) : state.createdAt;
   state.history.unshift({
-    id: Date.now(),
+    id: `${now}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16)}`,
+    roundNumber: state.history.length + 1,
     winner: winnerName,
+    winnerIndex,
     points: total,
+    changes: state.names.map((name, index) => ({ name, delta: index === winnerIndex ? total : 0, total: state.scores[index] })),
+    totalsBefore: before,
+    resultingTotals: [...state.scores],
     cards: cardsAwarded,
-    createdAt: new Date().toISOString()
+    timestamp: now,
+    createdAt: new Date(now).toISOString(),
+    durationMs: state.settings.roundDuration ? Math.max(0, now - previousAt) : null
   });
   state.history = state.history.slice(0, 50);
   state.stats.roundsPlayed = (state.stats.roundsPlayed || 0) + 1;
@@ -598,23 +668,28 @@ function awardRound() {
   const winnerStats = ensurePlayerStats(winnerName);
   winnerStats.roundsWon += 1;
   winnerStats.points += total;
-  const target = Math.max(1, Number(targetScore.value) || 500);
+  const target = Math.min(100000, Math.max(1, Number(targetScore.value) || 500));
   if (state.scores[winnerIndex] >= target && !state.winnerRecorded) {
     state.winnerRecorded = true;
     state.stats.gamesPlayed = (state.stats.gamesPlayed || 0) + 1;
     winnerStats.gamesWon += 1;
-    launchConfetti();
+    state.completedAt = now;
+    if (state.settings.confetti) launchConfetti();
     playTone(784, 0.25);
+    if (state.settings.vibration && navigator.vibrate) navigator.vibrate([100, 60, 180]);
   }
   renderScoreboard();
   clearCards();
   renderHistory();
   renderStats();
   saveState();
+  window.v5Features?.onRoundCompleted?.(state.history[0]);
   announcement.textContent = `${winnerName} received ${total} points.`;
+  setTimeout(() => { awardRound.submitting = false; }, 300);
 }
 
 function renderHistory() {
+  if (window.v5Features?.renderHistory) return window.v5Features.renderHistory();
   historyList.innerHTML = '';
   if (!state.history.length) {
     historyList.innerHTML = '<p class="note">No rounds recorded yet.</p>';
@@ -650,6 +725,8 @@ function clearHistory() {
 function applyTheme() {
   const dark = state.theme === 'dark' || (state.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.classList.toggle('high-contrast', Boolean(state.settings.highContrast));
+  document.documentElement.classList.toggle('reduce-motion', Boolean(state.settings.reducedMotion));
   themeButton.textContent = dark ? '☀️' : '🌙';
   themeButton.setAttribute('aria-label', dark ? 'Use light mode' : 'Use dark mode');
 }
@@ -670,6 +747,7 @@ function renderValueEditor() {
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '0';
+    input.max = '100000';
     input.step = '1';
     input.value = card.value;
     input.addEventListener('input', () => {
@@ -694,7 +772,7 @@ function reverseDirection() {
   state.clockwise = !state.clockwise;
   updateDirection();
   saveState();
-  if (navigator.vibrate) navigator.vibrate(40);
+  if (state.settings.vibration && navigator.vibrate) navigator.vibrate(40);
   playTone(state.clockwise ? 520 : 420, 0.08);
 }
 
@@ -702,7 +780,7 @@ function updateLeader() {
   if (!state.scores.length) return;
   const highest = Math.max(...state.scores);
   const leaders = state.names.filter((_, index) => state.scores[index] === highest);
-  const target = Math.max(1, Number(targetScore.value) || 500);
+  const target = Math.min(100000, Math.max(1, Number(targetScore.value) || 500));
   if (highest === 0) leaderText.textContent = `All ${isTeamsMode() ? 'teams' : 'players'} are tied on 0.`;
   else if (leaders.length > 1) leaderText.textContent = `${leaders.join(' and ')} are tied on ${highest}.`;
   else leaderText.textContent = `${leaders[0]} leads with ${highest}.`;
@@ -710,14 +788,23 @@ function updateLeader() {
   const winners = state.names.filter((_, index) => state.scores[index] >= target);
   winnerCallout.classList.toggle('hidden', !winners.length);
   winnerCallout.textContent = winners.length ? `🏆 ${winners.join(' and ')} reached ${target} points.` : '';
+  if (winners.length && state.winnerRecorded) window.v5Features?.showWinner?.();
 }
 
 function resetGame() {
   const confirmed = window.confirm('Start a new game and reset all scores?');
   if (!confirmed) return;
   pushUndo('start new game');
+  state.id = `${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+  state.title = `UNO Game ${new Date().toLocaleDateString()}`;
+  state.createdAt = Date.now();
+  state.updatedAt = Date.now();
   state.scores = state.scores.map(() => 0);
   state.history = [];
+  state.scoreBaseline = state.scores.map(() => 0);
+  state.completedAt = null;
+  state.starterIndex = null;
+  state.gameClock = { elapsedMs: 0, running: false, startedAt: null };
   state.winnerRecorded = false;
   clearCards();
   renderScoreboard();
@@ -797,14 +884,21 @@ function renderAll() {
 
 window.getLiveGameState = function getLiveGameState() {
   return {
-    version: 1,
+    version: 5,
+    id: state.id,
+    title: state.title,
+    createdAt: state.createdAt,
+    completedAt: state.completedAt,
     gameType: gameType.value,
     participantCount: Number(participantCount.value),
-    targetScore: Math.max(1, Number(targetScore.value) || 500),
+    targetScore: Math.min(100000, Math.max(1, Number(targetScore.value) || 500)),
     clockwise: state.clockwise,
     names: [...state.names],
     scores: [...state.scores],
     history: JSON.parse(JSON.stringify(state.history)),
+    starterIndex: state.starterIndex,
+    scoreBaseline: [...state.scoreBaseline],
+    settings: { ...state.settings },
     winnerRecorded: state.winnerRecorded,
     gameClock: {
       elapsedMs: state.gameClock.running ? Math.max(0, Number(state.gameClock.elapsedMs) || 0) : currentClockElapsed(),
@@ -819,7 +913,7 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   if (!live || !Array.isArray(live.names) || !Array.isArray(live.scores)) return;
   gameType.value = presets[live.gameType] ? live.gameType : 'classic';
   participantCount.value = String(Math.min(10, Math.max(2, Number(live.participantCount) || live.names.length || 4)));
-  targetScore.value = Math.max(1, Number(live.targetScore) || presets[gameType.value].target);
+  targetScore.value = Math.min(100000, Math.max(1, Number(live.targetScore) || presets[gameType.value].target));
   state.activeCards = presets[gameType.value].cards.map(card => ({ ...card }));
   state.names = live.names.slice(0, 10).map((name, i) => String(name || defaultName(i)).slice(0, 30));
   state.scores = live.scores.slice(0, 10).map(score => Math.max(0, Number(score) || 0));
@@ -827,6 +921,13 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   while (state.scores.length < Number(participantCount.value)) state.scores.push(0);
   state.clockwise = live.clockwise !== false;
   state.history = Array.isArray(live.history) ? live.history.slice(0, 50) : [];
+  state.id = String(live.id || state.id || '');
+  state.title = String(live.title || state.title || 'UNO Game').slice(0, 60);
+  state.createdAt = Number(live.createdAt) || state.createdAt || Date.now();
+  state.completedAt = Number(live.completedAt) || null;
+  state.starterIndex = Number.isInteger(live.starterIndex) ? live.starterIndex : null;
+  state.scoreBaseline = Array.isArray(live.scoreBaseline) ? live.scoreBaseline.slice(0, 10).map(v => Math.max(0, Number(v) || 0)) : state.scores.map(() => 0);
+  state.settings = { ...state.settings, ...(live.settings && typeof live.settings === 'object' ? live.settings : {}) };
   state.winnerRecorded = live.winnerRecorded === true;
   const remoteClock = live.gameClock && typeof live.gameClock === 'object' ? live.gameClock : null;
   state.gameClock = remoteClock ? {
@@ -837,10 +938,18 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   state.selected = {};
   state.cardHistory = [];
   renderAll();
+  if (document.body.classList.contains('viewer-mode')) window.setLiveViewerMode(true);
 };
 
 window.setLiveViewerMode = function setLiveViewerMode(enabled) {
   document.body.classList.toggle('viewer-mode', Boolean(enabled));
+  document.querySelectorAll('.settings-grid, .direction-stage, main > section.panel:not(.live-panel), main > details.panel').forEach(region => {
+    region.querySelectorAll('button, input, select, textarea').forEach(control => {
+      if (enabled && !control.disabled) { control.disabled = true; control.dataset.viewerDisabled = 'true'; }
+      else if (!enabled && control.dataset.viewerDisabled === 'true') { control.disabled = false; delete control.dataset.viewerDisabled; }
+    });
+  });
+  if (enabled) $('resumeLastGame')?.setAttribute('disabled', ''); else $('resumeLastGame')?.removeAttribute('disabled');
 };
 
 window.rebaseLiveTimer = function rebaseLiveTimer(nextNow) {
@@ -863,6 +972,14 @@ function initialiseCollapsibleSections() {
 
 initialiseCollapsibleSections();
 
+window.unoCore = {
+  state,
+  elements: { gameType, participantCount, targetScore, historyList, profileList, profileName, profileAvatar, profileColour, statsGrid, playerStats, roundWinner, announcement },
+  saveState, renderAll, renderScoreboard, renderHistory, renderProfiles, renderStats, renderGameClock, currentClockElapsed, formatClock, clearCards, updateLeader,
+  applyTheme,
+  serialize: () => window.getLiveGameState()
+};
+
 clockInterval = setInterval(renderGameClock, 500);
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && keepAwakeButton?.textContent === 'Allow Screen Sleep' && !wakeLock && 'wakeLock' in navigator) {
@@ -877,7 +994,7 @@ $('undoCard').addEventListener('click', undoCard);
 $('awardRound').addEventListener('click', awardRound);
 $('resetGame').addEventListener('click', resetGame);
 themeButton.addEventListener('click', toggleTheme);
-clearHistoryButton.addEventListener('click', clearHistory);
+clearHistoryButton?.addEventListener('click', clearHistory);
 undoActionButton.addEventListener('click', undoLastAction);
 randomStarterButton.addEventListener('click', chooseRandomStarter);
 shareGameButton.addEventListener('click', shareSnapshot);
@@ -891,7 +1008,7 @@ keepAwakeButton.addEventListener('click', toggleWakeLock);
 
 gameType.addEventListener('change', () => applyPreset(true));
 participantCount.addEventListener('change', () => rebuildParticipants(true));
-targetScore.addEventListener('input', () => { updateLeader(); saveState(); });
+targetScore.addEventListener('input', () => { if (Number(targetScore.value) > 100000) targetScore.value = '100000'; updateLeader(); saveState(); });
 
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();

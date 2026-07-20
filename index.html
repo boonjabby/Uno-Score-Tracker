@@ -4,12 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#d71920" />
-  <meta name="description" content="UNO direction tracker, score keeper and card-point calculator." />
+  <meta name="description" content="UNO score tracker with saved games, round history, statistics and live Firebase multiplayer." />
+  <meta name="application-name" content="UNO Score Tracker 5" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
-  <title>UNO Score Tracker</title>
+  <title>UNO Score Tracker 5</title>
 </head>
 <body>
   <main class="app-shell">
@@ -19,6 +20,7 @@
         <h1>Direction & Score Tracker</h1>
       </div>
       <div class="header-actions">
+        <button id="resumeLastGame" class="secondary" type="button">Resume Last Game</button>
         <button id="undoAction" class="secondary icon-button" type="button" aria-label="Undo last action" title="Undo last action">↶</button>
         <button id="themeButton" class="secondary icon-button" type="button" aria-label="Toggle dark mode">🌙</button>
         <button id="installButton" class="secondary hidden" type="button">Install App</button>
@@ -59,7 +61,7 @@
 
       <label>
         <span>Points to win</span>
-        <input id="targetScore" type="number" min="1" step="25" value="500" />
+        <input id="targetScore" type="number" min="1" max="100000" step="25" value="500" />
       </label>
 
       <p id="gameNote" class="note"></p>
@@ -126,6 +128,7 @@
         <button id="toggleGameClock" class="primary" type="button">Start Timer</button>
         <button id="resetGameClock" class="secondary" type="button">Reset Timer</button>
         <button id="keepAwakeButton" class="secondary" type="button">Keep Screen Awake</button>
+        <button id="openScoreboard" class="secondary" type="button">Fullscreen Scoreboard</button>
       </div>
     </section>
 
@@ -190,12 +193,25 @@
       <div id="winnerCallout" class="winner hidden" aria-live="polite"></div>
     </section>
 
+    <details class="panel collapsible-panel" data-section="round-history" open>
+      <summary>Round History</summary>
+      <div class="collapsible-content">
+        <div class="section-heading">
+          <div><p class="eyebrow">Match log</p><h2>Completed rounds</h2></div>
+          <button id="undoLastRound" class="secondary" type="button">Undo Last Round</button>
+        </div>
+        <div id="historyList" class="history-list"><p class="note">No rounds recorded yet.</p></div>
+      </div>
+    </details>
+
     <details class="panel collapsible-panel" data-section="saved-players">
       <summary>Saved players</summary>
       <div class="collapsible-content">
         <p class="note">Save regular players, then tap a profile to fill the next available player slot.</p>
-        <div class="profile-add">
+        <div class="profile-add profile-editor">
           <input id="profileName" type="text" maxlength="30" placeholder="Player name" aria-label="New saved player name" />
+          <input id="profileAvatar" type="text" maxlength="3" placeholder="Avatar" aria-label="Initials or emoji avatar" />
+          <label><span>Preferred colour</span><input id="profileColour" type="color" value="#d71920" /></label>
           <button id="addProfile" class="primary" type="button">Save Player</button>
         </div>
         <div id="profileList" class="profile-list"></div>
@@ -217,17 +233,11 @@
       </div>
     </details>
 
-    <details class="panel collapsible-panel" data-section="round-history">
-      <summary>Round history</summary>
+    <details class="panel collapsible-panel" data-section="saved-games">
+      <summary>Saved Games</summary>
       <div class="collapsible-content">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Match log</p>
-          <h2>Round history</h2>
-        </div>
-        <button id="clearHistory" class="secondary" type="button">Clear History</button>
-      </div>
-      <div id="historyList" class="history-list"><p class="note">No rounds recorded yet.</p></div>
+        <p class="note">Games are saved automatically on this device.</p>
+        <div id="savedGamesList" class="saved-games-list"></div>
       </div>
     </details>
 
@@ -236,6 +246,15 @@
       <div class="quick-actions settings-sharing-actions collapsible-content">
         <button id="soundButton" class="secondary action-tile" type="button"><span id="soundIcon" class="action-icon">🔊</span><span>Sound</span></button>
         <button id="shareGame" class="secondary action-tile" type="button"><span class="action-icon">🔗</span><span>Share Snapshot</span></button>
+      </div>
+      <div class="preferences-grid">
+        <label><span>Theme</span><select id="themeSelect"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+        <label class="toggle-label"><input id="highContrast" type="checkbox" /><span>High contrast</span></label>
+        <label class="toggle-label"><input id="reducedMotion" type="checkbox" /><span>Reduced motion</span></label>
+        <label class="toggle-label"><input id="confettiEnabled" type="checkbox" checked /><span>Winner confetti</span></label>
+        <label class="toggle-label"><input id="vibrationEnabled" type="checkbox" checked /><span>Vibration</span></label>
+        <label class="toggle-label"><input id="scoreboardQrEnabled" type="checkbox" /><span>Show join QR on fullscreen scoreboard</span></label>
+        <label class="toggle-label"><input id="roundDurationEnabled" type="checkbox" checked /><span>Record round duration</span></label>
       </div>
     </details>
 
@@ -246,17 +265,34 @@
     </details>
 
     <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+    <div id="winnerOverlay" class="fullscreen-overlay winner-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="winnerTitle">
+      <div class="winner-card">
+        <p class="eyebrow">Game complete</p><h2 id="winnerTitle">Winner</h2>
+        <div id="winnerSummary"></div>
+        <div class="button-row"><button id="rematchGame" class="primary" type="button">Rematch With Same Players</button><button id="shareResults" class="secondary" type="button">Share Results Snapshot</button><button id="closeWinner" class="secondary" type="button">Close</button></div>
+      </div>
+    </div>
+    <div id="inputOverlay" class="fullscreen-overlay input-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="inputDialogTitle">
+      <form id="inputDialogForm" class="winner-card input-card">
+        <h2 id="inputDialogTitle">Edit value</h2>
+        <label><span id="inputDialogLabel">Value</span><input id="inputDialogValue" autocomplete="off" /></label>
+        <div class="button-row"><button class="primary" type="submit">Save</button><button id="cancelInputDialog" class="secondary" type="button">Cancel</button></div>
+      </form>
+    </div>
     <div id="toast" class="toast hidden" role="status"></div>
     <div id="updateBanner" class="update-banner hidden" role="status">
       <span>A new version is ready.</span>
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 4.7.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 5.0.0 · Works offline after first load</footer>
   </main>
+
+  <section id="scoreboardPresentation" class="scoreboard-presentation hidden" aria-label="Fullscreen scoreboard"></section>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="app.js"></script>
+  <script src="v5-features.js"></script>
   <script type="module" src="live-sync.js"></script>
 </body>
 </html>

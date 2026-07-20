@@ -8,7 +8,18 @@
         ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || data.child('hostUid').val() === auth.uid)",
         "hostUid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "code": { ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/)" },
-        "game": { ".validate": "newData.hasChildren(['gameType','participantCount','targetScore','clockwise','names','scores'])" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "game": {
+          ".validate": "newData.hasChildren(['version','gameType','participantCount','targetScore','clockwise','names','scores','gameClock']) && newData.child('version').val() === 5 && newData.child('participantCount').isNumber() && newData.child('participantCount').val() >= 2 && newData.child('participantCount').val() <= 10 && newData.child('names').numChildren() === newData.child('participantCount').val() && newData.child('scores').numChildren() === newData.child('participantCount').val() && newData.child('history').numChildren() <= 200",
+          "gameType": { ".validate": "newData.isString() && newData.val().matches(/^(classic|teams|flipLight|flipDark|allWild|flex|noMercy|custom)$/)" },
+          "targetScore": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000" },
+          "clockwise": { ".validate": "newData.isBoolean()" },
+          "names": { "$index": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30" } },
+          "scores": { "$index": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" } },
+          "history": { "$index": { ".validate": "newData.hasChildren(['id','roundNumber','winner','winnerIndex','points','timestamp']) && newData.child('id').isString() && newData.child('roundNumber').isNumber() && newData.child('roundNumber').val() >= 1 && newData.child('winner').isString() && newData.child('winner').val().length <= 30 && newData.child('winnerIndex').isNumber() && newData.child('winnerIndex').val() >= 0 && newData.child('winnerIndex').val() < 10 && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('points').val() <= 100000 && newData.child('timestamp').isNumber()" } },
+          "gameClock": { ".validate": "newData.hasChildren(['elapsedMs','running']) && newData.child('elapsedMs').isNumber() && newData.child('elapsedMs').val() >= 0 && newData.child('running').isBoolean() && (!newData.child('running').val() || newData.child('startedAt').isNumber())" }
+        },
         "presence": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomId).exists()",
@@ -22,7 +33,8 @@
         ".read": "auth != null",
         ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || data.child('hostUid').val() === auth.uid)",
         "roomId": { ".validate": "newData.isString() && newData.val().matches(/^[a-f0-9]{32}$/)" },
-        "hostUid": { ".validate": "newData.isString() && newData.val() === auth.uid" }
+        "hostUid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "createdAt": { ".validate": "newData.isNumber()" }
       }
     }
   }

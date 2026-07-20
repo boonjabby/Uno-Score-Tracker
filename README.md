@@ -1,4 +1,4 @@
-# UNO Direction & Score Tracker
+# UNO Direction & Score Tracker v5.0.0
 
 A lightweight, installable Progressive Web App for tracking play direction, calculating cards left in losing hands, and keeping UNO scores.
 
@@ -11,8 +11,12 @@ A lightweight, installable Progressive Web App for tracking play direction, calc
 - Presets for Classic, Teams, Flip, All Wild, Flex and Show 'Em No Mercy
 - Editable player/team names, scores, target score and card values
 - Automatic local saving
-- Round history (last 50 rounds)
-- Light and dark modes
+- Editable round history with complete score deltas, totals, timing and undo
+- Saved-game library with resume, rename, duplicate and delete
+- Reusable local player profiles and history-derived statistics
+- System, light, dark, high-contrast and reduced-motion themes
+- Responsive fullscreen scoreboard and polished winner/rematch flow
+- Firebase live multiplayer with anonymous auth, presence, QR joining and reconnect
 - In-app update notification when a new service worker is available
 
 ## Run locally
@@ -25,9 +29,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open in Chrome / Safari
+## Publish with GitHub Pages
 
-Open the published address in Safari, tap Share, then Add to Home Screen.
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -55,9 +69,9 @@ This is an unofficial companion tool and is not affiliated with or endorsed by M
 - Shareable game snapshots using the Web Share API or clipboard
 - Improved dark mode and mobile interactions
 
-### About multiplayer and camera recognition
+### Local data and privacy
 
-The current GitHub Pages build is fully static. Cross-device live multiplayer requires a realtime backend such as Firebase or Supabase, and automatic camera card recognition requires a trained computer-vision model. Those features are intentionally not faked in this release. The Share Snapshot button transfers the current direction, names and scores without a server.
+Games, profiles and preferences are stored only in this browser unless a host starts a Firebase live room. Profiles use initials or emoji and a preferred colour; uploaded profile photographs and accounts are not used. Browser storage can be cleared by the browser or operating system, so the saved-game library is convenient local persistence rather than a backup service.
 
 
 ## Live cross-device viewer mode (v4)
@@ -69,9 +83,10 @@ Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtim
 1. Create a Firebase project at the Firebase Console.
 2. Add a **Web app** to the project and copy its configuration into `firebase-config.js`.
 3. Open **Authentication → Sign-in method** and enable **Anonymous** authentication.
-4. Create a **Realtime Database**. Do not leave it in public test mode.
-5. Open the database **Rules** tab, paste the contents of `firebase-database-rules.json`, and publish the rules.
-6. Commit `firebase-config.js` to GitHub and wait for GitHub Pages to redeploy. Firebase Web configuration identifiers are public by design; the security boundary is Authentication plus the published database rules.
+4. Under **Authentication → Settings → Authorized domains**, add the production Pages/custom domain and local test hosts such as `localhost` and `127.0.0.1`. If the Google Cloud API key has HTTP-referrer restrictions, allow the same origins.
+5. Create a **Realtime Database**. Do not leave it in public test mode.
+6. Open the database **Rules** tab, paste the contents of `firebase-database-rules.json`, and publish the rules.
+7. Commit `firebase-config.js` to GitHub and wait for GitHub Pages to redeploy. Firebase Web configuration identifiers are public by design; the security boundary is Authentication plus the published database rules.
 
 ### Security model
 
@@ -111,3 +126,40 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Added a Settings & Sharing section for Sound and Share Snapshot
 - Made secondary sections collapsible and remembered each section's open or closed state
 - Improved spacing, controls and card layout for smaller mobile screens
+
+
+## Version 5.0 additions
+
+- Complete round records: every player's delta and resulting total, round number, timestamp, card summary and optional duration
+- Expandable history directly below Scores, with Undo Last Round and confirmed edit/delete actions that recalculate totals
+- Automatic standalone saved games with Resume Last Game, rename, resume, duplicate and delete
+- Safe v4.7 migration into the v5 current-game, saved-game and object-profile schemas
+- Per-player and per-game statistics derived from saved round histories, including win percentage, round averages, high/low rounds, game duration and winning streaks
+- Local player profiles with initials/emoji avatar, preferred colour and lifetime results
+- Responsive fullscreen presentation with names, scores, starter, direction, round, timer, device count and optional live-room QR
+- Winner standings, rematch, results sharing, optional confetti/sound/vibration and reduced-motion support
+- System/light/dark themes, high contrast, larger focus indicators, ARIA improvements and keyboard-accessible controls
+- Hardened listener cleanup, offline/reconnect status, duplicate-round prevention, client validation and Firebase Database rules
+- Scoped cache cleanup and runtime caching for dependency-light offline use
+
+See `CHANGELOG.md` for the release summary and `CURRENT-STATE-v4.7.md` for the pre-edit architecture audit.
+
+## v4.7 data migration
+
+On first v5 load, the app reads `uno-score-tracker-v5-current` or falls back to the existing `uno-score-tracker-v4` record. It converts string player profiles to profile objects, expands legacy round entries, computes a score baseline so existing totals remain unchanged, assigns a stable local game id, and writes v5 data under new keys. The v4 record is retained as a recovery copy. Corrupt JSON is ignored and replaced with validated defaults without preventing startup.
+
+## Data model summary
+
+The active game is the authoritative model for names, scores, score baseline, direction, starter, rules, history, timer and settings. Round edits and deletions recompute scores from `scoreBaseline + round changes`; statistics are derived from round history rather than maintained as competing counters. Firebase hosts synchronize a bounded v5 DTO while profiles and the saved-game library remain local.
+
+## Known operational assumptions
+
+- A Firebase live room has one editing host and read-only joined viewers. Unexpected host loss leaves viewers in a waiting state until the same anonymous host session reconnects or the room is explicitly ended.
+- Room codes locate rooms but are not passwords. Firebase rules and anonymous authentication are the security boundary.
+- Browser local storage is finite and device-local. The app caps the saved library at 100 games and Firebase history at 200 rounds.
+- Wake Lock, Web Share, vibration and clipboard behavior depend on browser support and permission policy.
+- QRCode.js and Firebase are CDN-loaded and runtime-cached after a successful fetch; a completely fresh offline install cannot start live mode.
+
+## Release checks
+
+Before deployment, validate `firebase-database-rules.json` in the Firebase Emulator Suite or Rules Playground, publish the rules, then test one host and at least one viewer in separate browser profiles. The static project has no build step.

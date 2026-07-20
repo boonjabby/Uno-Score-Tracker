@@ -1,11 +1,14 @@
 {
   "name": "UNO Direction & Score Tracker",
   "short_name": "UNO Tracker",
-  "description": "Track UNO direction, calculate round points and keep scores.",
+  "description": "Track UNO scores, round history, saved games, statistics and live multiplayer.",
+  "id": "./",
+  "version": "5.0.0",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "categories": ["games", "utilities"],
   "background_color": "#f4f4f6",
   "theme_color": "#d71920",
   "icons": [

@@ -1,7 +1,7 @@
 import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import { getDatabase, ref, set, get, onValue, remove, serverTimestamp, onDisconnect }  from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js';
+import { getDatabase, ref, set, get, onValue, remove, update, serverTimestamp, onDisconnect }  from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js';
 
 const $ = id => document.getElementById(id);
 const ui = {
@@ -14,7 +14,7 @@ const ui = {
   overlayQr: $('overlayQr'), overlayRoomCode: $('overlayRoomCode'), scoreboardMode: $('scoreboardMode')
 };
 
-let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false, presenceDisconnect = null, serverTimeOffset = 0;
+let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false, presenceDisconnect = null, serverTimeOffset = 0, connectedCount = 1, serverOffsetUnsubscribe = null;
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_');
 
 function status(text, kind='offline') {
@@ -63,7 +63,7 @@ function showRoom() {
 }
 function resetUi() {
   window.rebaseLiveTimer?.(Date.now());
-  unsubscribe?.(); unsubscribe = null; presenceDisconnect?.cancel?.(); presenceDisconnect = null; roomId = roomCode = role = null;
+  clearTimeout(syncTimer); syncTimer = null; unsubscribe?.(); unsubscribe = null; presenceDisconnect?.cancel?.(); presenceDisconnect = null; roomId = roomCode = role = null; connectedCount = 1;
   localStorage.removeItem('uno-live-session-v1');
   ui.start.classList.remove('hidden'); ui.details.classList.add('hidden'); ui.joinBox.classList.add('hidden'); ui.viewer.classList.add('hidden'); ui.qr.classList.remove('hidden');
   window.setLiveViewerMode?.(false); document.body.classList.remove('scoreboard-display'); ui.viewerCount.classList.add('hidden'); status('Local game only.');
@@ -87,7 +87,7 @@ async function hostRoom() {
     status('Creating secure live room…','connecting'); await ensureAuth();
     roomId=randomId(); roomCode=await makeUniqueCode(roomId); window.rebaseLiveTimer?.(Date.now() + serverTimeOffset); role='host';
     await set(ref(db, `rooms/${roomId}`), { hostUid:user.uid, code:roomCode, createdAt:serverTimestamp(), updatedAt:serverTimestamp(), game:window.getLiveGameState() });
-    localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role}));
+    localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role,savedAt:Date.now()}));
     showRoom(); subscribe(); await registerPresence(); status(`Hosting room ${roomCode}. Viewers are read-only.`,'connected');
   } catch(e) { console.error(e); status(e.message || 'Could not create room.'); alert(e.message || 'Could not create live room.'); }
 }
@@ -97,7 +97,7 @@ async function joinByRoomId(id) {
     const snap=await get(ref(db, `rooms/${id}`));
     if (!snap.exists()) throw new Error('That live room does not exist or has ended.');
     roomId=id; roomCode=snap.val().code || '------'; role='viewer';
-    localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role}));
+    localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role,savedAt:Date.now()}));
     subscribe(); showRoom(); await registerPresence(); status(`Watching room ${roomCode}.`,'connected');
   } catch(e) { console.error(e); status(e.message || 'Could not join room.'); alert(e.message || 'Could not join room.'); }
 }
@@ -117,19 +117,27 @@ function subscribe() {
     if (!snap.exists()) { alert('The host ended this live game.'); resetUi(); return; }
     const room = snap.val();
     if (role === 'viewer') { applyingRemote=true; window.applyLiveGameState?.(room.game); applyingRemote=false; }
-    const connected = Object.keys(room.presence || {}).length;
+    const connected = Object.keys(room.presence || {}).length; connectedCount = Math.max(1, connected);
+    const hostConnected = Object.values(room.presence || {}).some(entry => entry?.role === 'host');
     ui.viewerCount.textContent = `👥 ${connected} connected`; ui.viewerCount.classList.remove('hidden');
-    status(role === 'host' ? `Hosting room ${roomCode}. Viewers are read-only.` : `Watching room ${roomCode}.`,'connected');
+    status(role === 'host' ? `Hosting room ${roomCode}. Viewers are read-only.` : hostConnected ? `Watching room ${roomCode}.` : 'Host disconnected. Waiting for the host to reconnect…', hostConnected || role === 'host' ? 'connected' : 'connecting');
+    window.v5Features?.renderPresentation?.();
   }, err => { console.error(err); status('Connection lost. Reconnecting…','connecting'); });
 }
 async function pushHostState() {
   if (role !== 'host' || !roomId || applyingRemote) return;
-  try { await set(ref(db, `rooms/${roomId}/game`), window.getLiveGameState()); await set(ref(db, `rooms/${roomId}/updatedAt`), serverTimestamp()); }
+  const game = window.getLiveGameState();
+  if (!game || !Array.isArray(game.names) || game.names.length < 2 || game.names.length > 10 || !Array.isArray(game.scores) || game.scores.length !== game.names.length) return status('Invalid game state was not synchronized.','connecting');
+  try { await update(ref(db, `rooms/${roomId}`), { game, updatedAt: serverTimestamp() }); }
   catch(e) { console.error(e); status('Could not sync. Check connection.','connecting'); }
 }
 window.liveSync = {
   hostStateChanged() { if (role !== 'host' || applyingRemote) return; clearTimeout(syncTimer); syncTimer=setTimeout(pushHostState,180); },
-  serverNow() { return role ? Date.now() + serverTimeOffset : Date.now(); }
+  serverNow() { return role ? Date.now() + serverTimeOffset : Date.now(); },
+  isViewer() { return role === 'viewer'; },
+  isHost() { return role === 'host'; },
+  presentationMeta() { return { connected: connectedCount, roomCode, role }; },
+  renderPresentationQr(target) { if (target && roomId) renderQr(target, 150); }
 };
 async function leaveRoom() {
   if (role === 'host' && roomId) {
@@ -151,21 +159,27 @@ ui.copy.addEventListener('click',async()=>{await navigator.clipboard.writeText(r
 ui.expandQr.addEventListener('click',()=>{ ui.overlayRoomCode.textContent=roomCode; renderQr(ui.overlayQr, 380); ui.qrOverlay.classList.remove('hidden'); });
 ui.closeQrOverlay.addEventListener('click',()=>ui.qrOverlay.classList.add('hidden'));
 ui.qrOverlay.addEventListener('click',e=>{ if(e.target===ui.qrOverlay) ui.qrOverlay.classList.add('hidden'); });
-ui.scoreboardMode.addEventListener('click',()=>{ document.body.classList.toggle('scoreboard-display'); ui.scoreboardMode.textContent=document.body.classList.contains('scoreboard-display')?'Exit Scoreboard':'Full-screen Scoreboard'; if(document.body.classList.contains('scoreboard-display')) { const b=document.createElement('button'); b.id='scoreboardExit'; b.className='primary scoreboard-exit'; b.textContent='Exit Scoreboard'; b.onclick=()=>ui.scoreboardMode.click(); document.body.appendChild(b); } else document.getElementById('scoreboardExit')?.remove(); });
+ui.scoreboardMode.addEventListener('click',()=>{ const enabled = !document.body.classList.contains('scoreboard-display'); document.body.classList.toggle('scoreboard-display', enabled); document.getElementById('scoreboardPresentation')?.classList.toggle('hidden', !enabled); ui.scoreboardMode.textContent=enabled?'Exit Scoreboard':'Full-screen Scoreboard'; if(enabled) { window.v5Features?.renderPresentation?.(); const b=document.createElement('button'); b.id='scoreboardExit'; b.className='primary scoreboard-exit'; b.textContent='Exit Scoreboard'; b.onclick=()=>ui.scoreboardMode.click(); document.body.appendChild(b); } else document.getElementById('scoreboardExit')?.remove(); });
 
 if (!configured) {
   status('Live mode needs Firebase setup. Local features still work.');
   ui.host.disabled=true; ui.showJoin.disabled=true;
 } else {
   const app=initializeApp(firebaseConfig); auth=getAuth(app); db=getDatabase(app);
-  onValue(ref(db, '.info/serverTimeOffset'), snap => { serverTimeOffset = Number(snap.val()) || 0; });
+  serverOffsetUnsubscribe = onValue(ref(db, '.info/serverTimeOffset'), snap => { serverTimeOffset = Number(snap.val()) || 0; });
   onAuthStateChanged(auth,u=>{user=u;});
   const hashMatch=location.hash.match(/^#live=([a-f0-9]{32})$/i);
   if (hashMatch) joinByRoomId(hashMatch[1]);
   else {
     try {
       const saved=JSON.parse(localStorage.getItem('uno-live-session-v1'));
-      if (saved?.roomId && ['host','viewer'].includes(saved?.role)) { roomId=saved.roomId; roomCode=saved.roomCode; role=saved.role; ensureAuth().then(async()=>{ const snap=await get(ref(db,`rooms/${roomId}`)); const allowed=snap.exists() && (role==='viewer' || snap.val().hostUid===user.uid); if(allowed){ roomCode=snap.val().code || roomCode; showRoom(); subscribe(); await registerPresence(); status(role==='host' ? `Hosting room ${roomCode}. Viewers are read-only.` : `Reconnected to room ${roomCode}.`,'connected'); } else resetUi(); }).catch(resetUi); }
+      if (saved?.roomId && ['host','viewer'].includes(saved?.role) && (!saved.savedAt || Date.now()-saved.savedAt < 7*24*60*60*1000)) { roomId=saved.roomId; roomCode=saved.roomCode; role=saved.role; ensureAuth().then(async()=>{ const snap=await get(ref(db,`rooms/${roomId}`)); const room=snap.val(); const fresh=room && (!Number(room.updatedAt) || Date.now()+serverTimeOffset-Number(room.updatedAt) < 7*24*60*60*1000); const allowed=snap.exists() && fresh && (role==='viewer' || room.hostUid===user.uid); if(allowed){ roomCode=room.code || roomCode; showRoom(); subscribe(); await registerPresence(); status(role==='host' ? `Hosting room ${roomCode}. Viewers are read-only.` : `Reconnected to room ${roomCode}.`,'connected'); } else resetUi(); }).catch(resetUi); }
+      else if (saved) resetUi();
     } catch {}
   }
 }
+
+window.addEventListener('online', () => { if (role) status('Connection restored. Synchronizing…','connecting'); if (role === 'host') pushHostState(); });
+window.addEventListener('offline', () => status(role ? 'Offline. Changes remain saved on this device.' : 'Offline. Standalone mode is available.','offline'));
+window.addEventListener('pagehide', () => { clearTimeout(syncTimer); unsubscribe?.(); unsubscribe = null; });
+window.addEventListener('pageshow', event => { if (event.persisted && role && roomId && !unsubscribe) subscribe(); });
