@@ -70,6 +70,20 @@
     </section>
 
 
+
+    <section id="gameClockPanel" class="panel game-clock-panel">
+      <div>
+        <p class="eyebrow">Game clock</p>
+        <strong id="gameClockDisplay" class="game-clock-display">00:00:00</strong>
+        <p id="gameClockStatus" class="note">Ready to start.</p>
+      </div>
+      <div class="game-clock-actions">
+        <button id="toggleGameClock" class="primary" type="button">Start Timer</button>
+        <button id="resetGameClock" class="secondary" type="button">Reset Timer</button>
+        <button id="keepAwakeButton" class="secondary" type="button">Keep Screen Awake</button>
+      </div>
+    </section>
+
     <section class="panel live-panel">
       <div class="section-heading">
         <div>
@@ -224,7 +238,7 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 4.5.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 4.6.0 · Works offline after first load</footer>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

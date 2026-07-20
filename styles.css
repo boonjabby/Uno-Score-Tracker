@@ -467,3 +467,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .scoreboard-display .score-row { display: block; border: 1px solid var(--border); border-radius: 20px; padding: 18px; background: var(--panel); }
 .scoreboard-display .score-row input { border: 0; background: transparent; text-align: center; font-size: clamp(1.5rem,5vw,3rem); font-weight: 900; pointer-events: none; }
 .scoreboard-exit { position: fixed; z-index: 220; right: 16px; bottom: max(16px,env(safe-area-inset-bottom)); }
+
+
+/* Version 4.6 game clock and display controls */
+.game-clock-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.game-clock-display { display: block; font-variant-numeric: tabular-nums; font-size: clamp(2.2rem, 9vw, 4rem); line-height: 1; letter-spacing: .04em; }
+.game-clock-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.scoreboard-display #gameClockPanel { display: flex !important; box-shadow: none; border: 0; background: transparent; justify-content: center; text-align: center; flex-direction: column; }
+.scoreboard-display #gameClockPanel .game-clock-actions { display: none; }
+.scoreboard-display .game-clock-display { font-size: clamp(3rem, 12vw, 7rem); }
+@media (max-width: 620px) { .game-clock-panel { align-items: stretch; flex-direction: column; } .game-clock-actions { justify-content: stretch; } .game-clock-actions button { flex: 1 1 160px; } }

@@ -102,3 +102,11 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Enlarged full-screen QR join view
 - Full-screen read-only scoreboard display for a shared tablet or TV
 - Updated security rules allowing each authenticated device to manage only its own presence record
+
+
+## Version 4.6 additions
+
+- Synced game timer with start, pause, resume and reset controls
+- Timer appears prominently in full-screen scoreboard mode
+- Optional Screen Wake Lock button on supported devices
+- Timer state reconnects and updates for live viewers

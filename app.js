@@ -36,6 +36,11 @@ const playerStats = $('playerStats');
 const resetStatsButton = $('resetStats');
 const confettiLayer = $('confettiLayer');
 const toast = $('toast');
+const gameClockDisplay = $('gameClockDisplay');
+const gameClockStatus = $('gameClockStatus');
+const toggleGameClockButton = $('toggleGameClock');
+const resetGameClockButton = $('resetGameClock');
+const keepAwakeButton = $('keepAwakeButton');
 
 const STORAGE_KEY = 'uno-score-tracker-v4';
 const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v3', 'uno-score-tracker-v2', 'uno-score-tracker-v1'];
@@ -166,7 +171,8 @@ let state = {
   profiles: [],
   stats: { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} },
   undoStack: [],
-  winnerRecorded: false
+  winnerRecorded: false,
+  gameClock: { elapsedMs: 0, running: false, startedAt: null }
 };
 
 function isTeamsMode() { return gameType.value === 'teams'; }
@@ -186,7 +192,8 @@ function saveState() {
     sound: state.sound,
     profiles: state.profiles,
     stats: state.stats,
-    winnerRecorded: state.winnerRecorded
+    winnerRecorded: state.winnerRecorded,
+    gameClock: state.gameClock
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   window.liveSync?.hostStateChanged?.();
@@ -208,6 +215,8 @@ function loadState() {
     state.stats = saved.stats && typeof saved.stats === 'object' ? saved.stats : state.stats;
     state.stats.players ||= {};
     state.winnerRecorded = saved.winnerRecorded === true;
+    state.gameClock = saved.gameClock && typeof saved.gameClock === 'object' ? saved.gameClock : { elapsedMs: 0, running: false, startedAt: null };
+    if (state.gameClock.running && !Number.isFinite(state.gameClock.startedAt)) state.gameClock.running = false;
     applyTheme();
     applyPreset(false);
     state.names = Array.isArray(saved.names) ? saved.names.slice(0, Number(participantCount.value)) : state.names;
@@ -239,7 +248,8 @@ function cloneSnapshot(label) {
     cardHistory: [...state.cardHistory],
     history: JSON.parse(JSON.stringify(state.history)),
     stats: JSON.parse(JSON.stringify(state.stats)),
-    winnerRecorded: state.winnerRecorded
+    winnerRecorded: state.winnerRecorded,
+    gameClock: state.gameClock
   };
 }
 
@@ -715,6 +725,57 @@ function resetGame() {
   announcement.textContent = 'New game started. Scores and round history reset.';
 }
 
+let clockInterval = null;
+let wakeLock = null;
+
+function currentClockElapsed() {
+  const base = Math.max(0, Number(state.gameClock?.elapsedMs) || 0);
+  return state.gameClock?.running && Number.isFinite(state.gameClock.startedAt)
+    ? base + Math.max(0, Date.now() - state.gameClock.startedAt)
+    : base;
+}
+
+function formatClock(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+}
+
+function renderGameClock() {
+  if (!gameClockDisplay) return;
+  gameClockDisplay.textContent = formatClock(currentClockElapsed());
+  gameClockStatus.textContent = state.gameClock.running ? 'Timer running.' : currentClockElapsed() ? 'Timer paused.' : 'Ready to start.';
+  toggleGameClockButton.textContent = state.gameClock.running ? 'Pause Timer' : (currentClockElapsed() ? 'Resume Timer' : 'Start Timer');
+}
+
+function toggleGameClock() {
+  if (state.gameClock.running) {
+    state.gameClock.elapsedMs = currentClockElapsed();
+    state.gameClock.running = false;
+    state.gameClock.startedAt = null;
+  } else {
+    state.gameClock.startedAt = Date.now();
+    state.gameClock.running = true;
+  }
+  renderGameClock(); saveState();
+}
+
+function resetGameClock() {
+  if (currentClockElapsed() > 0 && !confirm('Reset the game timer?')) return;
+  state.gameClock = { elapsedMs: 0, running: false, startedAt: null };
+  renderGameClock(); saveState();
+}
+
+async function toggleWakeLock() {
+  if (!('wakeLock' in navigator)) return showToast('Screen wake lock is not supported on this device.');
+  try {
+    if (wakeLock) { await wakeLock.release(); wakeLock = null; keepAwakeButton.textContent = 'Keep Screen Awake'; }
+    else { wakeLock = await navigator.wakeLock.request('screen'); keepAwakeButton.textContent = 'Allow Screen Sleep'; wakeLock.addEventListener('release', () => { wakeLock = null; keepAwakeButton.textContent = 'Keep Screen Awake'; }); }
+  } catch { showToast('Could not change the screen wake setting.'); }
+}
+
 function renderAll() {
   gameNote.textContent = presets[gameType.value].note;
   participantLabel.textContent = isTeamsMode() ? 'Teams' : 'Players';
@@ -727,6 +788,7 @@ function renderAll() {
   renderProfiles();
   renderStats();
   updateSoundButton();
+  renderGameClock();
 }
 
 
@@ -742,6 +804,7 @@ window.getLiveGameState = function getLiveGameState() {
     scores: [...state.scores],
     history: JSON.parse(JSON.stringify(state.history)),
     winnerRecorded: state.winnerRecorded,
+    gameClock: { elapsedMs: currentClockElapsed(), running: state.gameClock.running, startedAt: state.gameClock.running ? Date.now() : null },
     updatedAtClient: Date.now()
   };
 };
@@ -759,6 +822,7 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   state.clockwise = live.clockwise !== false;
   state.history = Array.isArray(live.history) ? live.history.slice(0, 50) : [];
   state.winnerRecorded = live.winnerRecorded === true;
+  state.gameClock = live.gameClock && typeof live.gameClock === 'object' ? { elapsedMs: Math.max(0, Number(live.gameClock.elapsedMs) || 0), running: live.gameClock.running === true, startedAt: live.gameClock.running ? Date.now() : null } : { elapsedMs: 0, running: false, startedAt: null };
   state.selected = {};
   state.cardHistory = [];
   renderAll();
@@ -767,6 +831,13 @@ window.applyLiveGameState = function applyLiveGameState(live) {
 window.setLiveViewerMode = function setLiveViewerMode(enabled) {
   document.body.classList.toggle('viewer-mode', Boolean(enabled));
 };
+
+clockInterval = setInterval(renderGameClock, 500);
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && keepAwakeButton?.textContent === 'Allow Screen Sleep' && !wakeLock && 'wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+});
 
 $('reverseButton').addEventListener('click', reverseDirection);
 $('reverseAction').addEventListener('click', reverseDirection);
@@ -783,6 +854,9 @@ soundButton.addEventListener('click', () => { state.sound = !state.sound; update
 addProfileButton.addEventListener('click', addProfile);
 profileName.addEventListener('keydown', event => { if (event.key === 'Enter') addProfile(); });
 resetStatsButton.addEventListener('click', resetStats);
+toggleGameClockButton.addEventListener('click', toggleGameClock);
+resetGameClockButton.addEventListener('click', resetGameClock);
+keepAwakeButton.addEventListener('click', toggleWakeLock);
 
 gameType.addEventListener('change', () => applyPreset(true));
 participantCount.addEventListener('change', () => rebuildParticipants(true));

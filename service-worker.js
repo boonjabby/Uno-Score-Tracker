@@ -1,4 +1,4 @@
-const CACHE_NAME = 'uno-tracker-v4.5.0';
+const CACHE_NAME = 'uno-tracker-v4.6.0';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.json',
   './live-sync.js', './firebase-config.js', './icons/icon-192.png', './icons/icon-512.png'
