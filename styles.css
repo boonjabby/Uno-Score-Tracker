@@ -349,3 +349,66 @@ html[data-theme="dark"] .danger { background: #31191b; color: #ffb7ba; border-co
   .history-points { justify-self: start; }
   .update-banner { align-items: stretch; flex-direction: column; }
 }
+
+/* Version 3 enhancements */
+button:disabled { opacity: .45; cursor: not-allowed; }
+.quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.action-tile { display: flex; min-height: 72px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.action-icon { font-size: 1.45rem; }
+.starter-callout { text-align: center; font-size: 1.25rem; font-weight: 900; background: linear-gradient(135deg, #fff7cc, #fff); }
+.profile-add { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 14px; }
+.profile-list { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.profile-chip { display: inline-flex; overflow: hidden; border: 1px solid var(--border); border-radius: 999px; background: #fff; }
+.profile-chip button { border: 0; padding: 9px 12px; background: transparent; color: var(--text); font-weight: 800; }
+.profile-chip .profile-remove { border-left: 1px solid var(--border); padding-inline: 10px; color: var(--muted); }
+.stats-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.stat-card { min-width: 0; border: 1px solid var(--border); border-radius: 15px; padding: 12px; background: #f7f7f9; }
+.stat-card span { display: block; color: var(--muted); font-size: .75rem; font-weight: 700; }
+.stat-card strong { display: block; margin-top: 5px; font-size: 1.15rem; overflow-wrap: anywhere; }
+.player-stats { margin-top: 14px; }
+.player-stat-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.player-stat-row span { color: var(--muted); text-align: right; font-size: .86rem; }
+.toast { position: fixed; z-index: 100; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: min(90vw, 520px); border-radius: 999px; padding: 11px 17px; background: #17171a; color: white; box-shadow: 0 12px 30px rgb(0 0 0 / .25); font-weight: 800; }
+.confetti-layer { pointer-events: none; position: fixed; z-index: 99; inset: 0; overflow: hidden; }
+.confetti-layer span { position: absolute; top: -30px; font-size: 18px; animation: confetti-fall linear forwards; }
+.confetti-layer span:nth-child(5n+1) { color: #d71920; }
+.confetti-layer span:nth-child(5n+2) { color: #177bd1; }
+.confetti-layer span:nth-child(5n+3) { color: #2ca24c; }
+.confetti-layer span:nth-child(5n+4) { color: #f2b900; }
+.confetti-layer span:nth-child(5n) { color: #7a2b91; }
+@keyframes confetti-fall { to { transform: translate(var(--drift), 110vh) rotate(720deg); opacity: .15; } }
+.direction-card:active, .card-button:active, .action-tile:active { transform: scale(.97); }
+.direction-card, .card-button, .action-tile { transition: transform .12s ease, border-color .2s ease, background-color .2s ease; }
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101014;
+  --panel: #1b1b20;
+  --text: #f4f4f6;
+  --muted: #a9a9b2;
+  --border: #34343c;
+  --accent-soft: #3b181a;
+  --shadow: 0 12px 30px rgb(0 0 0 / .3);
+}
+[data-theme="dark"] body { background: linear-gradient(180deg, #0b0b0e, var(--bg) 22%); }
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] .secondary,
+[data-theme="dark"] .card-button,
+[data-theme="dark"] .profile-chip { background: #24242a; color: var(--text); }
+[data-theme="dark"] .summary,
+[data-theme="dark"] .stat-card { background: #24242a; }
+[data-theme="dark"] .starter-callout { background: linear-gradient(135deg, #3d3517, #1b1b20); }
+[data-theme="dark"] .winner { background: #3b3214; color: #fff2a8; }
+
+@media (max-width: 720px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .action-tile { padding: 8px 4px; font-size: .78rem; }
+  .profile-add { grid-template-columns: 1fr; }
+  .profile-add button { width: 100%; }
+  .player-stat-row { flex-direction: column; }
+  .player-stat-row span { text-align: left; }
+}

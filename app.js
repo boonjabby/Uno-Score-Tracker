@@ -22,9 +22,23 @@ const historyList = $('historyList');
 const clearHistoryButton = $('clearHistory');
 const updateBanner = $('updateBanner');
 const reloadAppButton = $('reloadApp');
+const undoActionButton = $('undoAction');
+const randomStarterButton = $('randomStarter');
+const shareGameButton = $('shareGame');
+const soundButton = $('soundButton');
+const soundIcon = $('soundIcon');
+const starterCallout = $('starterCallout');
+const profileName = $('profileName');
+const addProfileButton = $('addProfile');
+const profileList = $('profileList');
+const statsGrid = $('statsGrid');
+const playerStats = $('playerStats');
+const resetStatsButton = $('resetStats');
+const confettiLayer = $('confettiLayer');
+const toast = $('toast');
 
-const STORAGE_KEY = 'uno-score-tracker-v2';
-const LEGACY_STORAGE_KEY = 'uno-score-tracker-v1';
+const STORAGE_KEY = 'uno-score-tracker-v3';
+const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v2', 'uno-score-tracker-v1'];
 let deferredPrompt = null;
 
 const colours = ['#d71920', '#177bd1', '#2ca24c', '#f2b900'];
@@ -147,7 +161,12 @@ let state = {
   selected: {},
   cardHistory: [],
   history: [],
-  theme: 'system'
+  theme: 'system',
+  sound: true,
+  profiles: [],
+  stats: { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} },
+  undoStack: [],
+  winnerRecorded: false
 };
 
 function isTeamsMode() { return gameType.value === 'teams'; }
@@ -163,14 +182,19 @@ function saveState() {
     scores: state.scores,
     cardValues: Object.fromEntries(state.activeCards.map(card => [card.id, card.value])),
     history: state.history,
-    theme: state.theme
+    theme: state.theme,
+    sound: state.sound,
+    profiles: state.profiles,
+    stats: state.stats,
+    winnerRecorded: state.winnerRecorded
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY));
+    const raw = localStorage.getItem(STORAGE_KEY) || LEGACY_STORAGE_KEYS.map(key => localStorage.getItem(key)).find(Boolean);
+    const saved = JSON.parse(raw);
     if (!saved) return false;
     gameType.value = saved.gameType || 'classic';
     participantCount.value = saved.participantCount || '4';
@@ -178,6 +202,11 @@ function loadState() {
     state.clockwise = saved.clockwise !== false;
     state.history = Array.isArray(saved.history) ? saved.history : [];
     state.theme = saved.theme || 'system';
+    state.sound = saved.sound !== false;
+    state.profiles = Array.isArray(saved.profiles) ? saved.profiles : [];
+    state.stats = saved.stats && typeof saved.stats === 'object' ? saved.stats : state.stats;
+    state.stats.players ||= {};
+    state.winnerRecorded = saved.winnerRecorded === true;
     applyTheme();
     applyPreset(false);
     state.names = Array.isArray(saved.names) ? saved.names.slice(0, Number(participantCount.value)) : state.names;
@@ -193,9 +222,185 @@ function loadState() {
     return true;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
     return false;
   }
+}
+
+
+function cloneSnapshot(label) {
+  return {
+    label,
+    clockwise: state.clockwise,
+    names: [...state.names],
+    scores: [...state.scores],
+    selected: { ...state.selected },
+    cardHistory: [...state.cardHistory],
+    history: JSON.parse(JSON.stringify(state.history)),
+    stats: JSON.parse(JSON.stringify(state.stats)),
+    winnerRecorded: state.winnerRecorded
+  };
+}
+
+function pushUndo(label) {
+  state.undoStack.push(cloneSnapshot(label));
+  state.undoStack = state.undoStack.slice(-30);
+  undoActionButton.disabled = false;
+}
+
+function undoLastAction() {
+  const snap = state.undoStack.pop();
+  if (!snap) return showToast('Nothing to undo.');
+  Object.assign(state, snap);
+  renderAll();
+  saveState();
+  undoActionButton.disabled = state.undoStack.length === 0;
+  showToast(`Undid: ${snap.label}`);
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.add('hidden'), 2400);
+}
+
+function playTone(frequency = 440, duration = 0.08) {
+  if (!state.sound) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    oscillator.connect(gain).connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + duration);
+  } catch {}
+}
+
+function updateSoundButton() {
+  soundIcon.textContent = state.sound ? '🔊' : '🔇';
+  soundButton.setAttribute('aria-pressed', String(state.sound));
+}
+
+function launchConfetti() {
+  confettiLayer.innerHTML = '';
+  const symbols = ['◆','●','▲','■','★'];
+  for (let i = 0; i < 70; i += 1) {
+    const piece = document.createElement('span');
+    piece.textContent = symbols[i % symbols.length];
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.animationDelay = `${Math.random() * 0.45}s`;
+    piece.style.animationDuration = `${1.6 + Math.random() * 1.4}s`;
+    piece.style.setProperty('--drift', `${-90 + Math.random() * 180}px`);
+    confettiLayer.appendChild(piece);
+  }
+  setTimeout(() => { confettiLayer.innerHTML = ''; }, 3400);
+}
+
+function chooseRandomStarter() {
+  if (!state.names.length) return;
+  const index = Math.floor(Math.random() * state.names.length);
+  const name = state.names[index];
+  starterCallout.textContent = `🎲 ${name} starts this round!`;
+  starterCallout.classList.remove('hidden');
+  starterCallout.animate([{ transform: 'scale(.92)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 260, easing: 'ease-out' });
+  if (navigator.vibrate) navigator.vibrate([45, 35, 45]);
+  playTone(620, 0.12);
+}
+
+async function shareSnapshot() {
+  const snapshot = { gameType: gameType.value, names: state.names, scores: state.scores, clockwise: state.clockwise };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(snapshot))));
+  const url = `${location.origin}${location.pathname}#game=${encoded}`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'Card Game Score Tracker', text: 'Current game snapshot', url });
+    else { await navigator.clipboard.writeText(url); showToast('Snapshot link copied.'); }
+  } catch (error) {
+    if (error?.name !== 'AbortError') showToast('Could not share the snapshot.');
+  }
+}
+
+function importSnapshotFromHash() {
+  const match = location.hash.match(/^#game=(.+)$/);
+  if (!match) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
+    if (!Array.isArray(data.names) || !Array.isArray(data.scores)) return;
+    gameType.value = presets[data.gameType] ? data.gameType : 'classic';
+    participantCount.value = String(Math.min(10, Math.max(2, data.names.length)));
+    applyPreset(false);
+    state.names = data.names.slice(0, 10);
+    state.scores = data.scores.slice(0, 10).map(v => Math.max(0, Number(v) || 0));
+    state.clockwise = data.clockwise !== false;
+    renderAll();
+    saveState();
+    history.replaceState(null, '', location.pathname);
+    showToast('Shared game snapshot loaded.');
+  } catch {}
+}
+
+function addProfile() {
+  const name = profileName.value.trim();
+  if (!name) return;
+  if (!state.profiles.some(p => p.toLowerCase() === name.toLowerCase())) state.profiles.push(name);
+  profileName.value = '';
+  renderProfiles();
+  saveState();
+}
+
+function renderProfiles() {
+  profileList.innerHTML = '';
+  if (!state.profiles.length) {
+    profileList.innerHTML = '<p class="note">No saved players yet.</p>';
+    return;
+  }
+  state.profiles.forEach((name, index) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'profile-chip';
+    const use = document.createElement('button');
+    use.type = 'button';
+    use.textContent = name;
+    use.addEventListener('click', () => {
+      pushUndo('apply saved player');
+      const slot = state.names.findIndex((n, i) => n === defaultName(i));
+      state.names[slot >= 0 ? slot : 0] = name;
+      renderScoreboard(); saveState(); showToast(`${name} added to the game.`);
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'profile-remove'; remove.textContent = '×';
+    remove.setAttribute('aria-label', `Remove ${name}`);
+    remove.addEventListener('click', () => { state.profiles.splice(index, 1); renderProfiles(); saveState(); });
+    wrap.append(use, remove); profileList.appendChild(wrap);
+  });
+}
+
+function ensurePlayerStats(name) {
+  state.stats.players[name] ||= { roundsWon: 0, points: 0, gamesWon: 0 };
+  return state.stats.players[name];
+}
+
+function renderStats() {
+  const stats = state.stats;
+  const entries = Object.entries(stats.players || {});
+  const mostRounds = entries.sort((a,b) => b[1].roundsWon - a[1].roundsWon)[0];
+  statsGrid.innerHTML = [
+    ['Games played', stats.gamesPlayed || 0],
+    ['Rounds played', stats.roundsPlayed || 0],
+    ['Total points', stats.totalPoints || 0],
+    ['Highest round', stats.highestRound || 0],
+    ['Most round wins', mostRounds ? `${mostRounds[0]} (${mostRounds[1].roundsWon})` : '—']
+  ].map(([label,value]) => `<article class="stat-card"><span>${label}</span><strong>${value}</strong></article>`).join('');
+  playerStats.innerHTML = entries.length ? entries.map(([name, ps]) => `<div class="player-stat-row"><strong>${name}</strong><span>${ps.gamesWon || 0} game wins · ${ps.roundsWon || 0} rounds · ${ps.points || 0} pts</span></div>`).join('') : '<p class="note">Statistics appear after awarding rounds.</p>';
+}
+
+function resetStats() {
+  if (!confirm('Reset all lifetime statistics? Current scores will remain.')) return;
+  state.stats = { gamesPlayed: 0, roundsPlayed: 0, totalPoints: 0, highestRound: 0, players: {} };
+  renderStats(); saveState();
 }
 
 function rebuildParticipants(preserve = true) {
@@ -222,6 +427,7 @@ function renderScoreboard() {
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.value = name;
+    nameInput.addEventListener('focus', () => pushUndo('edit player name'), { once: true });
     nameInput.addEventListener('input', () => {
       state.names[index] = nameInput.value.trim() || defaultName(index);
       updateWinnerOptions(roundWinner.value);
@@ -237,6 +443,7 @@ function renderScoreboard() {
     scoreInput.min = '0';
     scoreInput.step = '1';
     scoreInput.value = state.scores[index];
+    scoreInput.addEventListener('focus', () => pushUndo('edit score'), { once: true });
     scoreInput.addEventListener('input', () => {
       state.scores[index] = Math.max(0, Number(scoreInput.value) || 0);
       updateLeader();
@@ -315,6 +522,7 @@ function renderCardButtons() {
     button.addEventListener('click', () => {
       state.selected[card.id] = (state.selected[card.id] || 0) + 1;
       state.cardHistory.push(card.id);
+      playTone(360 + Math.min(card.value, 100) * 2, 0.05);
       renderCardButtons();
       updateCalculator();
     });
@@ -358,6 +566,7 @@ function awardRound() {
     announcement.textContent = 'Select at least one remaining card first.';
     return;
   }
+  pushUndo('award round points');
   state.scores[winnerIndex] += total;
   const winnerName = state.names[winnerIndex];
   const cardsAwarded = state.activeCards
@@ -371,9 +580,24 @@ function awardRound() {
     createdAt: new Date().toISOString()
   });
   state.history = state.history.slice(0, 50);
+  state.stats.roundsPlayed = (state.stats.roundsPlayed || 0) + 1;
+  state.stats.totalPoints = (state.stats.totalPoints || 0) + total;
+  state.stats.highestRound = Math.max(state.stats.highestRound || 0, total);
+  const winnerStats = ensurePlayerStats(winnerName);
+  winnerStats.roundsWon += 1;
+  winnerStats.points += total;
+  const target = Math.max(1, Number(targetScore.value) || 500);
+  if (state.scores[winnerIndex] >= target && !state.winnerRecorded) {
+    state.winnerRecorded = true;
+    state.stats.gamesPlayed = (state.stats.gamesPlayed || 0) + 1;
+    winnerStats.gamesWon += 1;
+    launchConfetti();
+    playTone(784, 0.25);
+  }
   renderScoreboard();
   clearCards();
   renderHistory();
+  renderStats();
   saveState();
   announcement.textContent = `${winnerName} received ${total} points.`;
 }
@@ -454,10 +678,12 @@ function updateDirection() {
 }
 
 function reverseDirection() {
+  pushUndo('reverse direction');
   state.clockwise = !state.clockwise;
   updateDirection();
   saveState();
   if (navigator.vibrate) navigator.vibrate(40);
+  playTone(state.clockwise ? 520 : 420, 0.08);
 }
 
 function updateLeader() {
@@ -477,8 +703,10 @@ function updateLeader() {
 function resetGame() {
   const confirmed = window.confirm('Start a new game and reset all scores?');
   if (!confirmed) return;
+  pushUndo('start new game');
   state.scores = state.scores.map(() => 0);
   state.history = [];
+  state.winnerRecorded = false;
   clearCards();
   renderScoreboard();
   renderHistory();
@@ -495,6 +723,9 @@ function renderAll() {
   updateCalculator();
   updateDirection();
   renderHistory();
+  renderProfiles();
+  renderStats();
+  updateSoundButton();
 }
 
 $('reverseButton').addEventListener('click', reverseDirection);
@@ -505,6 +736,13 @@ $('awardRound').addEventListener('click', awardRound);
 $('resetGame').addEventListener('click', resetGame);
 themeButton.addEventListener('click', toggleTheme);
 clearHistoryButton.addEventListener('click', clearHistory);
+undoActionButton.addEventListener('click', undoLastAction);
+randomStarterButton.addEventListener('click', chooseRandomStarter);
+shareGameButton.addEventListener('click', shareSnapshot);
+soundButton.addEventListener('click', () => { state.sound = !state.sound; updateSoundButton(); saveState(); playTone(600, 0.06); });
+addProfileButton.addEventListener('click', addProfile);
+profileName.addEventListener('keydown', event => { if (event.key === 'Enter') addProfile(); });
+resetStatsButton.addEventListener('click', resetStats);
 
 gameType.addEventListener('change', () => applyPreset(true));
 participantCount.addEventListener('change', () => rebuildParticipants(true));
@@ -558,3 +796,5 @@ if (!loadState()) {
   applyTheme();
   applyPreset(true);
 }
+undoActionButton.disabled = true;
+importSnapshotFromHash();

@@ -19,6 +19,7 @@
         <h1>Direction & Score Tracker</h1>
       </div>
       <div class="header-actions">
+        <button id="undoAction" class="secondary icon-button" type="button" aria-label="Undo last action" title="Undo last action">↶</button>
         <button id="themeButton" class="secondary icon-button" type="button" aria-label="Toggle dark mode">🌙</button>
         <button id="installButton" class="secondary hidden" type="button">Install App</button>
       </div>
@@ -62,6 +63,14 @@
       <p id="gameNote" class="note"></p>
     </section>
 
+    <section class="panel quick-actions">
+      <button id="randomStarter" class="secondary action-tile" type="button"><span class="action-icon">🎲</span><span>Choose starter</span></button>
+      <button id="shareGame" class="secondary action-tile" type="button"><span class="action-icon">🔗</span><span>Share snapshot</span></button>
+      <button id="soundButton" class="secondary action-tile" type="button"><span id="soundIcon" class="action-icon">🔊</span><span>Sound</span></button>
+    </section>
+
+    <section id="starterCallout" class="starter-callout panel hidden" aria-live="polite"></section>
+
     <section class="direction-stage panel">
       <button id="reverseButton" class="direction-card" type="button" aria-label="Reverse direction">
         <span class="direction-oval"></span>
@@ -103,6 +112,21 @@
     <section class="panel">
       <div class="section-heading">
         <div>
+          <p class="eyebrow">Player profiles</p>
+          <h2>Saved players</h2>
+          <p class="note">Save regular players, then tap a profile to fill the next available player slot.</p>
+        </div>
+      </div>
+      <div class="profile-add">
+        <input id="profileName" type="text" maxlength="30" placeholder="Player name" aria-label="New saved player name" />
+        <button id="addProfile" class="primary" type="button">Save Player</button>
+      </div>
+      <div id="profileList" class="profile-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
           <p class="eyebrow">Scoreboard</p>
           <h2>Scores</h2>
           <p id="leaderText" class="note">All players are tied on 0.</p>
@@ -111,6 +135,18 @@
       </div>
       <div id="scoreboard"></div>
       <div id="winnerCallout" class="winner hidden" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Lifetime stats</p>
+          <h2>Statistics</h2>
+        </div>
+        <button id="resetStats" class="secondary" type="button">Reset Stats</button>
+      </div>
+      <div id="statsGrid" class="stats-grid"></div>
+      <div id="playerStats" class="player-stats"></div>
     </section>
 
     <section class="panel">
@@ -130,12 +166,14 @@
       <div id="valueEditor" class="value-grid"></div>
     </details>
 
+    <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+    <div id="toast" class="toast hidden" role="status"></div>
     <div id="updateBanner" class="update-banner hidden" role="status">
       <span>A new version is ready.</span>
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 2.0.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 3.0.0 · Works offline after first load</footer>
   </main>
 
   <script src="app.js"></script>

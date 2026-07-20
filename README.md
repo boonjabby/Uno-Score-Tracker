@@ -25,9 +25,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Opening on Chrome
+## Publish with GitHub Pages
 
-https://boonjabby.github.io/Uno-Score-Tracker/
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -44,4 +54,17 @@ This project intentionally uses plain HTML, CSS and JavaScript. There is no buil
 ## Trademark note
 
 This is an unofficial companion tool and is not affiliated with or endorsed by Mattel. UNO is a trademark of its respective owner. The card graphics are original CSS-style representations rather than official artwork.
-Deployment trigger
+
+## Version 3.0 additions
+
+- Saved player profiles
+- Random starting-player picker
+- Lifetime statistics
+- Global undo for major game actions
+- Optional sound, haptics and winner confetti
+- Shareable game snapshots using the Web Share API or clipboard
+- Improved dark mode and mobile interactions
+
+### About multiplayer and camera recognition
+
+The current GitHub Pages build is fully static. Cross-device live multiplayer requires a realtime backend such as Firebase or Supabase, and automatic camera card recognition requires a trained computer-vision model. Those features are intentionally not faked in this release. The Share Snapshot button transfers the current direction, names and scores without a server.

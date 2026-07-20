@@ -1,4 +1,4 @@
-const CACHE_NAME = 'uno-tracker-v2.0.0';
+const CACHE_NAME = 'uno-tracker-v3.0.0';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png'
