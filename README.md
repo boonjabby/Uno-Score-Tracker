@@ -27,7 +27,7 @@ Then open `http://localhost:8080`.
 
 ## Opening on Chrome
 
-'https://boonjabby.github.io/Uno-Score-Tracker/'
+https://boonjabby.github.io/Uno-Score-Tracker/
 
 ## Install on a phone
 
