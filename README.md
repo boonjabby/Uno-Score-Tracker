@@ -54,3 +54,4 @@ This project intentionally uses plain HTML, CSS and JavaScript. There is no buil
 ## Trademark note
 
 This is an unofficial companion tool and is not affiliated with or endorsed by Mattel. UNO is a trademark of its respective owner. The card graphics are original CSS-style representations rather than official artwork.
+Deployment trigger.
