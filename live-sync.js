@@ -14,7 +14,7 @@ const ui = {
   overlayQr: $('overlayQr'), overlayRoomCode: $('overlayRoomCode'), scoreboardMode: $('scoreboardMode')
 };
 
-let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false, presenceDisconnect = null;
+let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false, presenceDisconnect = null, serverTimeOffset = 0;
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_');
 
 function status(text, kind='offline') {
@@ -62,6 +62,7 @@ function showRoom() {
   ui.scoreboardMode.textContent = document.body.classList.contains('scoreboard-display') ? 'Exit Scoreboard' : 'Full-screen Scoreboard';
 }
 function resetUi() {
+  window.rebaseLiveTimer?.(Date.now());
   unsubscribe?.(); unsubscribe = null; presenceDisconnect?.cancel?.(); presenceDisconnect = null; roomId = roomCode = role = null;
   localStorage.removeItem('uno-live-session-v1');
   ui.start.classList.remove('hidden'); ui.details.classList.add('hidden'); ui.joinBox.classList.add('hidden'); ui.viewer.classList.add('hidden'); ui.qr.classList.remove('hidden');
@@ -84,7 +85,7 @@ async function makeUniqueCode(id) {
 async function hostRoom() {
   try {
     status('Creating secure live room…','connecting'); await ensureAuth();
-    roomId=randomId(); roomCode=await makeUniqueCode(roomId); role='host';
+    roomId=randomId(); roomCode=await makeUniqueCode(roomId); window.rebaseLiveTimer?.(Date.now() + serverTimeOffset); role='host';
     await set(ref(db, `rooms/${roomId}`), { hostUid:user.uid, code:roomCode, createdAt:serverTimestamp(), updatedAt:serverTimestamp(), game:window.getLiveGameState() });
     localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role}));
     showRoom(); subscribe(); await registerPresence(); status(`Hosting room ${roomCode}. Viewers are read-only.`,'connected');
@@ -126,7 +127,10 @@ async function pushHostState() {
   try { await set(ref(db, `rooms/${roomId}/game`), window.getLiveGameState()); await set(ref(db, `rooms/${roomId}/updatedAt`), serverTimestamp()); }
   catch(e) { console.error(e); status('Could not sync. Check connection.','connecting'); }
 }
-window.liveSync = { hostStateChanged() { if (role !== 'host' || applyingRemote) return; clearTimeout(syncTimer); syncTimer=setTimeout(pushHostState,180); } };
+window.liveSync = {
+  hostStateChanged() { if (role !== 'host' || applyingRemote) return; clearTimeout(syncTimer); syncTimer=setTimeout(pushHostState,180); },
+  serverNow() { return role ? Date.now() + serverTimeOffset : Date.now(); }
+};
 async function leaveRoom() {
   if (role === 'host' && roomId) {
     if (!confirm('End this live room for every viewer?')) return;
@@ -154,6 +158,7 @@ if (!configured) {
   ui.host.disabled=true; ui.showJoin.disabled=true;
 } else {
   const app=initializeApp(firebaseConfig); auth=getAuth(app); db=getDatabase(app);
+  onValue(ref(db, '.info/serverTimeOffset'), snap => { serverTimeOffset = Number(snap.val()) || 0; });
   onAuthStateChanged(auth,u=>{user=u;});
   const hashMatch=location.hash.match(/^#live=([a-f0-9]{32})$/i);
   if (hashMatch) joinByRoomId(hashMatch[1]);

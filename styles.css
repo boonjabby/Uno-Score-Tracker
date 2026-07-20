@@ -292,6 +292,13 @@ input, select {
 }
 
 summary { cursor: pointer; font-weight: 900; }
+.collapsible-panel > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+.collapsible-panel > summary::-webkit-details-marker { display: none; }
+.collapsible-panel > summary::after { content: '+'; color: var(--accent); font-size: 1.5rem; line-height: 1; }
+.collapsible-panel[open] > summary::after { content: '−'; }
+.collapsible-content { margin-top: 16px; }
+.starter-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.settings-sharing-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .announcement { padding: 2px 4px 18px; text-align: center; }
 .hidden { display: none !important; }
 
@@ -458,7 +465,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .overlay-room-code { font-size: clamp(3rem, 15vw, 6rem); letter-spacing: .16em; }
 .overlay-qr { width: min(72vw, 420px); aspect-ratio: 1; display: grid; place-items: center; padding: 18px; border-radius: 24px; background: #fff; }
 .overlay-qr img, .overlay-qr canvas { width: 100% !important; height: auto !important; }
-.scoreboard-display .app-header, .scoreboard-display .settings-grid, .scoreboard-display .quick-actions, .scoreboard-display .live-panel, .scoreboard-display .starter-callout, .scoreboard-display .direction-stage + section, .scoreboard-display .profile-add, .scoreboard-display .panel:has(#statsGrid), .scoreboard-display .panel:has(#historyList), .scoreboard-display details, .scoreboard-display .announcement, .scoreboard-display .app-footer { display: none !important; }
+.scoreboard-display .app-header, .scoreboard-display .settings-grid, .scoreboard-display .quick-actions, .scoreboard-display .live-panel, .scoreboard-display .starter-panel, .scoreboard-display .starter-callout, .scoreboard-display .direction-stage + section, .scoreboard-display .profile-add, .scoreboard-display .panel:has(#statsGrid), .scoreboard-display .panel:has(#historyList), .scoreboard-display details, .scoreboard-display .announcement, .scoreboard-display .app-footer { display: none !important; }
 .scoreboard-display .app-shell { width: min(1100px,100%); min-height: 100vh; display: grid; align-content: center; }
 .scoreboard-display .direction-stage { box-shadow: none; background: transparent; border: 0; }
 .scoreboard-display .direction-card { width: 180px; height: 255px; }
@@ -477,3 +484,23 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .scoreboard-display #gameClockPanel .game-clock-actions { display: none; }
 .scoreboard-display .game-clock-display { font-size: clamp(3rem, 12vw, 7rem); }
 @media (max-width: 620px) { .game-clock-panel { align-items: stretch; flex-direction: column; } .game-clock-actions { justify-content: stretch; } .game-clock-actions button { flex: 1 1 160px; } }
+
+/* Version 4.7 responsive layout */
+@media (max-width: 620px) {
+  .app-shell { padding-inline: 12px; }
+  .panel { margin-bottom: 12px; padding: 14px; border-radius: 18px; }
+  .starter-panel { align-items: stretch; flex-direction: column; }
+  .starter-panel button { width: 100%; }
+  .game-clock-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .game-clock-actions button { min-width: 0; }
+  .game-clock-actions button:last-child { grid-column: 1 / -1; }
+  .section-heading { gap: 10px; }
+  .settings-sharing-actions { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 390px) {
+  .app-shell { padding-inline: 9px; }
+  .panel { padding: 12px; border-radius: 16px; }
+  .card-grid { gap: 7px; }
+  .card-button { min-height: 146px; }
+  .header-actions { gap: 5px; }
+}

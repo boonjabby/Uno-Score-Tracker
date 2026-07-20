@@ -25,9 +25,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open on Chrome
+## Publish with GitHub Pages
 
-https://boonjabby.github.io/Uno-Score-Tracker/
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -100,3 +110,14 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Timer appears prominently in full-screen scoreboard mode
 - Optional Screen Wake Lock button on supported devices
 - Timer state reconnects and updates for live viewers
+
+
+## Version 4.7 additions
+
+- Fixed standalone and multiplayer Start, Pause, Resume and Reset timer behaviour
+- Synchronized running timers with Firebase server time to prevent drift across connected devices and reconnects
+- Moved the Game Timer directly below Live Game and Choose Starter above Direction
+- Moved Saved Players below Scores
+- Added a Settings & Sharing section for Sound and Share Snapshot
+- Made secondary sections collapsible and remembered each section's open or closed state
+- Improved spacing, controls and card layout for smaller mobile screens

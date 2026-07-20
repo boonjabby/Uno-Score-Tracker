@@ -25,7 +25,9 @@
       </div>
     </header>
 
-    <section class="panel settings-grid">
+    <details class="panel collapsible-panel" data-section="game-setup" open>
+      <summary>Game setup</summary>
+      <div class="settings-grid collapsible-content">
       <label>
         <span>UNO version</span>
         <select id="gameType">
@@ -61,28 +63,8 @@
       </label>
 
       <p id="gameNote" class="note"></p>
-    </section>
-
-    <section class="panel quick-actions">
-      <button id="randomStarter" class="secondary action-tile" type="button"><span class="action-icon">🎲</span><span>Choose starter</span></button>
-      <button id="shareGame" class="secondary action-tile" type="button"><span class="action-icon">🔗</span><span>Share snapshot</span></button>
-      <button id="soundButton" class="secondary action-tile" type="button"><span id="soundIcon" class="action-icon">🔊</span><span>Sound</span></button>
-    </section>
-
-
-
-    <section id="gameClockPanel" class="panel game-clock-panel">
-      <div>
-        <p class="eyebrow">Game clock</p>
-        <strong id="gameClockDisplay" class="game-clock-display">00:00:00</strong>
-        <p id="gameClockStatus" class="note">Ready to start.</p>
       </div>
-      <div class="game-clock-actions">
-        <button id="toggleGameClock" class="primary" type="button">Start Timer</button>
-        <button id="resetGameClock" class="secondary" type="button">Reset Timer</button>
-        <button id="keepAwakeButton" class="secondary" type="button">Keep Screen Awake</button>
-      </div>
-    </section>
+    </details>
 
     <section class="panel live-panel">
       <div class="section-heading">
@@ -134,6 +116,24 @@
       </div>
     </section>
 
+    <section id="gameClockPanel" class="panel game-clock-panel">
+      <div>
+        <p class="eyebrow">Game timer</p>
+        <strong id="gameClockDisplay" class="game-clock-display">00:00:00</strong>
+        <p id="gameClockStatus" class="note">Ready to start.</p>
+      </div>
+      <div class="game-clock-actions">
+        <button id="toggleGameClock" class="primary" type="button">Start Timer</button>
+        <button id="resetGameClock" class="secondary" type="button">Reset Timer</button>
+        <button id="keepAwakeButton" class="secondary" type="button">Keep Screen Awake</button>
+      </div>
+    </section>
+
+    <section class="panel starter-panel">
+      <div><p class="eyebrow">Choose starter</p><p class="note">Pick a player at random for the next round.</p></div>
+      <button id="randomStarter" class="secondary" type="button"><span class="action-icon">🎲</span> Choose Starter</button>
+    </section>
+
     <section id="starterCallout" class="starter-callout panel hidden" aria-live="polite"></section>
 
     <section class="direction-stage panel">
@@ -145,7 +145,9 @@
       <button id="reverseAction" class="primary full" type="button">Reverse Direction</button>
     </section>
 
-    <section class="panel">
+    <details class="panel collapsible-panel" data-section="round-calculator" open>
+      <summary>Round calculator</summary>
+      <div class="collapsible-content">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Round calculator</p>
@@ -172,22 +174,8 @@
         <button id="undoCard" class="secondary" type="button">Undo Last Card</button>
         <button id="awardRound" class="primary" type="button">Award Round Points</button>
       </div>
-    </section>
-
-    <section class="panel">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Player profiles</p>
-          <h2>Saved players</h2>
-          <p class="note">Save regular players, then tap a profile to fill the next available player slot.</p>
-        </div>
       </div>
-      <div class="profile-add">
-        <input id="profileName" type="text" maxlength="30" placeholder="Player name" aria-label="New saved player name" />
-        <button id="addProfile" class="primary" type="button">Save Player</button>
-      </div>
-      <div id="profileList" class="profile-list"></div>
-    </section>
+    </details>
 
     <section class="panel">
       <div class="section-heading">
@@ -202,7 +190,21 @@
       <div id="winnerCallout" class="winner hidden" aria-live="polite"></div>
     </section>
 
-    <section class="panel">
+    <details class="panel collapsible-panel" data-section="saved-players">
+      <summary>Saved players</summary>
+      <div class="collapsible-content">
+        <p class="note">Save regular players, then tap a profile to fill the next available player slot.</p>
+        <div class="profile-add">
+          <input id="profileName" type="text" maxlength="30" placeholder="Player name" aria-label="New saved player name" />
+          <button id="addProfile" class="primary" type="button">Save Player</button>
+        </div>
+        <div id="profileList" class="profile-list"></div>
+      </div>
+    </details>
+
+    <details class="panel collapsible-panel" data-section="statistics">
+      <summary>Statistics</summary>
+      <div class="collapsible-content">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Lifetime stats</p>
@@ -212,9 +214,12 @@
       </div>
       <div id="statsGrid" class="stats-grid"></div>
       <div id="playerStats" class="player-stats"></div>
-    </section>
+      </div>
+    </details>
 
-    <section class="panel">
+    <details class="panel collapsible-panel" data-section="round-history">
+      <summary>Round history</summary>
+      <div class="collapsible-content">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Match log</p>
@@ -223,9 +228,18 @@
         <button id="clearHistory" class="secondary" type="button">Clear History</button>
       </div>
       <div id="historyList" class="history-list"><p class="note">No rounds recorded yet.</p></div>
-    </section>
+      </div>
+    </details>
 
-    <details class="panel">
+    <details class="panel collapsible-panel" data-section="settings-sharing">
+      <summary>Settings &amp; Sharing</summary>
+      <div class="quick-actions settings-sharing-actions collapsible-content">
+        <button id="soundButton" class="secondary action-tile" type="button"><span id="soundIcon" class="action-icon">🔊</span><span>Sound</span></button>
+        <button id="shareGame" class="secondary action-tile" type="button"><span class="action-icon">🔗</span><span>Share Snapshot</span></button>
+      </div>
+    </details>
+
+    <details class="panel collapsible-panel" data-section="card-values">
       <summary>Edit card point values</summary>
       <p class="note">Adjust these for your deck or house rules.</p>
       <div id="valueEditor" class="value-grid"></div>
@@ -238,7 +252,7 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 4.6.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 4.7.0 · Works offline after first load</footer>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

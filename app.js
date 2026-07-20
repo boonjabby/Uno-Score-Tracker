@@ -43,6 +43,7 @@ const resetGameClockButton = $('resetGameClock');
 const keepAwakeButton = $('keepAwakeButton');
 
 const STORAGE_KEY = 'uno-score-tracker-v4';
+const SECTION_STATE_KEY = 'uno-section-state-v1';
 const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v3', 'uno-score-tracker-v2', 'uno-score-tracker-v1'];
 let deferredPrompt = null;
 
@@ -730,8 +731,9 @@ let wakeLock = null;
 
 function currentClockElapsed() {
   const base = Math.max(0, Number(state.gameClock?.elapsedMs) || 0);
+  const now = window.liveSync?.serverNow?.() ?? Date.now();
   return state.gameClock?.running && Number.isFinite(state.gameClock.startedAt)
-    ? base + Math.max(0, Date.now() - state.gameClock.startedAt)
+    ? base + Math.max(0, now - state.gameClock.startedAt)
     : base;
 }
 
@@ -756,7 +758,7 @@ function toggleGameClock() {
     state.gameClock.running = false;
     state.gameClock.startedAt = null;
   } else {
-    state.gameClock.startedAt = Date.now();
+    state.gameClock.startedAt = window.liveSync?.serverNow?.() ?? Date.now();
     state.gameClock.running = true;
   }
   renderGameClock(); saveState();
@@ -804,7 +806,11 @@ window.getLiveGameState = function getLiveGameState() {
     scores: [...state.scores],
     history: JSON.parse(JSON.stringify(state.history)),
     winnerRecorded: state.winnerRecorded,
-    gameClock: { elapsedMs: currentClockElapsed(), running: state.gameClock.running, startedAt: state.gameClock.running ? Date.now() : null },
+    gameClock: {
+      elapsedMs: state.gameClock.running ? Math.max(0, Number(state.gameClock.elapsedMs) || 0) : currentClockElapsed(),
+      running: state.gameClock.running,
+      startedAt: state.gameClock.running ? state.gameClock.startedAt : null
+    },
     updatedAtClient: Date.now()
   };
 };
@@ -822,7 +828,12 @@ window.applyLiveGameState = function applyLiveGameState(live) {
   state.clockwise = live.clockwise !== false;
   state.history = Array.isArray(live.history) ? live.history.slice(0, 50) : [];
   state.winnerRecorded = live.winnerRecorded === true;
-  state.gameClock = live.gameClock && typeof live.gameClock === 'object' ? { elapsedMs: Math.max(0, Number(live.gameClock.elapsedMs) || 0), running: live.gameClock.running === true, startedAt: live.gameClock.running ? Date.now() : null } : { elapsedMs: 0, running: false, startedAt: null };
+  const remoteClock = live.gameClock && typeof live.gameClock === 'object' ? live.gameClock : null;
+  state.gameClock = remoteClock ? {
+    elapsedMs: Math.max(0, Number(remoteClock.elapsedMs) || 0),
+    running: remoteClock.running === true && Number.isFinite(Number(remoteClock.startedAt)),
+    startedAt: remoteClock.running && Number.isFinite(Number(remoteClock.startedAt)) ? Number(remoteClock.startedAt) : null
+  } : { elapsedMs: 0, running: false, startedAt: null };
   state.selected = {};
   state.cardHistory = [];
   renderAll();
@@ -831,6 +842,26 @@ window.applyLiveGameState = function applyLiveGameState(live) {
 window.setLiveViewerMode = function setLiveViewerMode(enabled) {
   document.body.classList.toggle('viewer-mode', Boolean(enabled));
 };
+
+window.rebaseLiveTimer = function rebaseLiveTimer(nextNow) {
+  if (!state.gameClock.running) return;
+  state.gameClock.elapsedMs = currentClockElapsed();
+  state.gameClock.startedAt = Number(nextNow) || Date.now();
+};
+
+function initialiseCollapsibleSections() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SECTION_STATE_KEY)) || {}; } catch {}
+  document.querySelectorAll('details[data-section]').forEach(section => {
+    if (typeof saved[section.dataset.section] === 'boolean') section.open = saved[section.dataset.section];
+    section.addEventListener('toggle', () => {
+      saved[section.dataset.section] = section.open;
+      localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(saved));
+    });
+  });
+}
+
+initialiseCollapsibleSections();
 
 clockInterval = setInterval(renderGameClock, 500);
 document.addEventListener('visibilitychange', async () => {
