@@ -25,8 +25,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open in Chrome
-https://boonjabby.github.io/Uno-Score-Tracker/
+## Publish with GitHub Pages
+
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -57,3 +68,28 @@ This is an unofficial companion tool and is not affiliated with or endorsed by M
 ### About multiplayer and camera recognition
 
 The current GitHub Pages build is fully static. Cross-device live multiplayer requires a realtime backend such as Firebase or Supabase, and automatic camera card recognition requires a trained computer-vision model. Those features are intentionally not faked in this release. The Share Snapshot button transfers the current direction, names and scores without a server.
+
+
+## Live cross-device viewer mode (v4)
+
+Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtime Database. The host has write access; viewers are read-only. A QR join link and a six-character room code are both provided.
+
+### One-time Firebase setup
+
+1. Create a Firebase project at the Firebase Console.
+2. Add a **Web app** to the project and copy its configuration into `firebase-config.js`.
+3. Open **Authentication → Sign-in method** and enable **Anonymous** authentication.
+4. Create a **Realtime Database**. Do not leave it in public test mode.
+5. Open the database **Rules** tab, paste the contents of `firebase-database-rules.json`, and publish the rules.
+6. Commit `firebase-config.js` to GitHub and wait for GitHub Pages to redeploy. Firebase Web configuration identifiers are public by design; the security boundary is Authentication plus the published database rules.
+
+### Security model
+
+- Only the anonymous Firebase user that created a room can write or delete it.
+- Any authenticated viewer who knows the random room link or six-character code can read that room. Game data contains only names, scores, direction, and round history, so do not enter sensitive personal information.
+- Room codes are convenient access locators, not passwords. End the room when play finishes.
+- The app has no public room listing, chat, passwords, or account profiles.
+
+### QR note
+
+QR images are generated locally in the browser using QRCode.js loaded from cdnjs. The room URL is not sent to a QR-image service.

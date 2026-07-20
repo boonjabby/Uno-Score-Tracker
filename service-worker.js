@@ -1,7 +1,7 @@
-const CACHE_NAME = 'uno-tracker-v3.0.0';
+const CACHE_NAME = 'uno-tracker-v4.0.1';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.json',
-  './icons/icon-192.png', './icons/icon-512.png'
+  './live-sync.js', './firebase-config.js', './icons/icon-192.png', './icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

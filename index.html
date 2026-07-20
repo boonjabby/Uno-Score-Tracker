@@ -69,6 +69,49 @@
       <button id="soundButton" class="secondary action-tile" type="button"><span id="soundIcon" class="action-icon">🔊</span><span>Sound</span></button>
     </section>
 
+
+    <section class="panel live-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Live game</p>
+          <h2>Host or watch on other phones</h2>
+          <p id="liveStatus" class="note">Local game only.</p>
+        </div>
+        <span id="connectionBadge" class="connection-badge offline">Offline</span>
+      </div>
+
+      <div id="liveStartControls" class="live-start-controls">
+        <button id="hostLiveGame" class="primary" type="button">Host Live Game</button>
+        <button id="showJoinControls" class="secondary" type="button">Join as Viewer</button>
+      </div>
+
+      <div id="joinControls" class="join-controls hidden">
+        <label>
+          <span>6-character room code</span>
+          <input id="roomCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123" />
+        </label>
+        <div class="button-row">
+          <button id="joinLiveGame" class="primary" type="button">Join Room</button>
+          <button id="cancelJoin" class="secondary" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <div id="liveRoomDetails" class="live-room-details hidden">
+        <div class="room-code-card">
+          <span>Room code</span>
+          <strong id="liveRoomCode">------</strong>
+          <button id="copyRoomCode" class="secondary" type="button">Copy code</button>
+        </div>
+        <div id="qrCode" class="qr-code" aria-label="QR code for joining the live game"></div>
+        <div class="live-room-actions">
+          <button id="shareLiveRoom" class="primary" type="button">Share Join Link</button>
+          <button id="leaveLiveRoom" class="danger" type="button">End / Leave Live Game</button>
+        </div>
+      </div>
+
+      <div id="viewerNotice" class="viewer-notice hidden">👀 Viewer mode — scores and direction update live. Only the host can make changes.</div>
+    </section>
+
     <section id="starterCallout" class="starter-callout panel hidden" aria-live="polite"></section>
 
     <section class="direction-stage panel">
@@ -173,9 +216,11 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 3.0.0 · Works offline after first load</footer>
+    <footer class="app-footer">Version 4.0.1 · Works offline after first load</footer>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="app.js"></script>
+  <script type="module" src="live-sync.js"></script>
 </body>
 </html>

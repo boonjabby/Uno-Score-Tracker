@@ -37,8 +37,8 @@ const resetStatsButton = $('resetStats');
 const confettiLayer = $('confettiLayer');
 const toast = $('toast');
 
-const STORAGE_KEY = 'uno-score-tracker-v3';
-const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v2', 'uno-score-tracker-v1'];
+const STORAGE_KEY = 'uno-score-tracker-v4';
+const LEGACY_STORAGE_KEYS = ['uno-score-tracker-v3', 'uno-score-tracker-v2', 'uno-score-tracker-v1'];
 let deferredPrompt = null;
 
 const colours = ['#d71920', '#177bd1', '#2ca24c', '#f2b900'];
@@ -189,6 +189,7 @@ function saveState() {
     winnerRecorded: state.winnerRecorded
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  window.liveSync?.hostStateChanged?.();
 }
 
 function loadState() {
@@ -727,6 +728,45 @@ function renderAll() {
   renderStats();
   updateSoundButton();
 }
+
+
+
+window.getLiveGameState = function getLiveGameState() {
+  return {
+    version: 1,
+    gameType: gameType.value,
+    participantCount: Number(participantCount.value),
+    targetScore: Math.max(1, Number(targetScore.value) || 500),
+    clockwise: state.clockwise,
+    names: [...state.names],
+    scores: [...state.scores],
+    history: JSON.parse(JSON.stringify(state.history)),
+    winnerRecorded: state.winnerRecorded,
+    updatedAtClient: Date.now()
+  };
+};
+
+window.applyLiveGameState = function applyLiveGameState(live) {
+  if (!live || !Array.isArray(live.names) || !Array.isArray(live.scores)) return;
+  gameType.value = presets[live.gameType] ? live.gameType : 'classic';
+  participantCount.value = String(Math.min(10, Math.max(2, Number(live.participantCount) || live.names.length || 4)));
+  targetScore.value = Math.max(1, Number(live.targetScore) || presets[gameType.value].target);
+  state.activeCards = presets[gameType.value].cards.map(card => ({ ...card }));
+  state.names = live.names.slice(0, 10).map((name, i) => String(name || defaultName(i)).slice(0, 30));
+  state.scores = live.scores.slice(0, 10).map(score => Math.max(0, Number(score) || 0));
+  while (state.names.length < Number(participantCount.value)) state.names.push(defaultName(state.names.length));
+  while (state.scores.length < Number(participantCount.value)) state.scores.push(0);
+  state.clockwise = live.clockwise !== false;
+  state.history = Array.isArray(live.history) ? live.history.slice(0, 50) : [];
+  state.winnerRecorded = live.winnerRecorded === true;
+  state.selected = {};
+  state.cardHistory = [];
+  renderAll();
+};
+
+window.setLiveViewerMode = function setLiveViewerMode(enabled) {
+  document.body.classList.toggle('viewer-mode', Boolean(enabled));
+};
 
 $('reverseButton').addEventListener('click', reverseDirection);
 $('reverseAction').addEventListener('click', reverseDirection);

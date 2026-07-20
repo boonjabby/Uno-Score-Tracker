@@ -412,3 +412,41 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .player-stat-row { flex-direction: column; }
   .player-stat-row span { text-align: left; }
 }
+
+
+/* Version 4 live multiplayer */
+.live-start-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.join-controls { margin-top: 14px; }
+.live-room-details { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 18px; align-items: center; margin-top: 16px; }
+.room-code-card { display: grid; gap: 6px; align-content: center; }
+.room-code-card > span { color: var(--muted); font-weight: 800; }
+.room-code-card strong { font-size: clamp(2rem, 10vw, 3.4rem); letter-spacing: .14em; line-height: 1; }
+.qr-code { width: 190px; min-height: 190px; display: grid; place-items: center; padding: 10px; background: white; border-radius: 16px; border: 1px solid var(--border); }
+.qr-code img, .qr-code canvas { max-width: 170px; width: 100%; height: auto; }
+.live-room-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+.connection-badge { border-radius: 999px; padding: 7px 11px; font-size: .78rem; font-weight: 900; background: #ececf0; }
+.connection-badge.connected { background: #dff7e5; color: #17642b; }
+.connection-badge.connecting { background: #fff3cc; color: #725600; }
+.connection-badge.offline { background: #f1e4e5; color: #7a2025; }
+.viewer-notice { margin-top: 14px; border-radius: 14px; padding: 12px 14px; background: #eaf3ff; color: #164b83; font-weight: 800; }
+.viewer-mode .settings-grid,
+.viewer-mode .quick-actions,
+.viewer-mode .direction-stage,
+.viewer-mode main > section.panel:not(.live-panel),
+.viewer-mode main > details.panel,
+.viewer-mode .header-actions #undoAction { pointer-events: none; }
+.viewer-mode .settings-grid,
+.viewer-mode .quick-actions,
+.viewer-mode .direction-stage,
+.viewer-mode main > section.panel:not(.live-panel),
+.viewer-mode main > details.panel { opacity: .72; }
+[data-theme="dark"] .connection-badge.connected { background: #173a22; color: #b9f2c6; }
+[data-theme="dark"] .connection-badge.connecting { background: #433711; color: #ffe89a; }
+[data-theme="dark"] .connection-badge.offline { background: #402025; color: #ffc0c5; }
+[data-theme="dark"] .viewer-notice { background: #172b44; color: #b9d9ff; }
+@media (max-width: 620px) {
+  .live-start-controls { grid-template-columns: 1fr; }
+  .live-room-details { grid-template-columns: 1fr; }
+  .qr-code { justify-self: center; }
+  .live-room-actions { grid-column: 1; }
+}
