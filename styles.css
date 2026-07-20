@@ -450,3 +450,20 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .qr-code { justify-self: center; }
   .live-room-actions { grid-column: 1; }
 }
+
+
+/* Version 4.5 live presence and presentation modes */
+.fullscreen-overlay { position: fixed; z-index: 250; inset: 0; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 28px; background: color-mix(in srgb, var(--panel) 96%, transparent); text-align: center; }
+.overlay-close { position: fixed; top: max(18px, env(safe-area-inset-top)); right: 18px; width: 48px; height: 48px; border: 1px solid var(--border); border-radius: 50%; background: var(--panel); color: var(--text); font-size: 2rem; line-height: 1; }
+.overlay-room-code { font-size: clamp(3rem, 15vw, 6rem); letter-spacing: .16em; }
+.overlay-qr { width: min(72vw, 420px); aspect-ratio: 1; display: grid; place-items: center; padding: 18px; border-radius: 24px; background: #fff; }
+.overlay-qr img, .overlay-qr canvas { width: 100% !important; height: auto !important; }
+.scoreboard-display .app-header, .scoreboard-display .settings-grid, .scoreboard-display .quick-actions, .scoreboard-display .live-panel, .scoreboard-display .starter-callout, .scoreboard-display .direction-stage + section, .scoreboard-display .profile-add, .scoreboard-display .panel:has(#statsGrid), .scoreboard-display .panel:has(#historyList), .scoreboard-display details, .scoreboard-display .announcement, .scoreboard-display .app-footer { display: none !important; }
+.scoreboard-display .app-shell { width: min(1100px,100%); min-height: 100vh; display: grid; align-content: center; }
+.scoreboard-display .direction-stage { box-shadow: none; background: transparent; border: 0; }
+.scoreboard-display .direction-card { width: 180px; height: 255px; }
+.scoreboard-display .panel:has(#scoreboard) { box-shadow: none; border: 0; background: transparent; }
+.scoreboard-display #scoreboard { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 16px; }
+.scoreboard-display .score-row { display: block; border: 1px solid var(--border); border-radius: 20px; padding: 18px; background: var(--panel); }
+.scoreboard-display .score-row input { border: 0; background: transparent; text-align: center; font-size: clamp(1.5rem,5vw,3rem); font-weight: 900; pointer-events: none; }
+.scoreboard-exit { position: fixed; z-index: 220; right: 16px; bottom: max(16px,env(safe-area-inset-bottom)); }

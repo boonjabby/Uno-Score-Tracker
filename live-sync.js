@@ -1,7 +1,7 @@
 import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import { getDatabase, ref, set, get, onValue, remove, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js';
+import { getDatabase, ref, set, get, onValue, remove, serverTimestamp, onDisconnect }  from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js';
 
 const $ = id => document.getElementById(id);
 const ui = {
@@ -9,10 +9,12 @@ const ui = {
   showJoin: $('showJoinControls'), joinBox: $('joinControls'), codeInput: $('roomCodeInput'),
   join: $('joinLiveGame'), cancel: $('cancelJoin'), host: $('hostLiveGame'),
   details: $('liveRoomDetails'), code: $('liveRoomCode'), qr: $('qrCode'),
-  copy: $('copyRoomCode'), share: $('shareLiveRoom'), leave: $('leaveLiveRoom'), viewer: $('viewerNotice')
+  copy: $('copyRoomCode'), share: $('shareLiveRoom'), leave: $('leaveLiveRoom'), viewer: $('viewerNotice'),
+  viewerCount: $('viewerCount'), expandQr: $('expandQr'), qrOverlay: $('qrOverlay'), closeQrOverlay: $('closeQrOverlay'),
+  overlayQr: $('overlayQr'), overlayRoomCode: $('overlayRoomCode'), scoreboardMode: $('scoreboardMode')
 };
 
-let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false;
+let auth, db, user, roomId = null, roomCode = null, role = null, unsubscribe = null, syncTimer = null, applyingRemote = false, presenceDisconnect = null;
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_');
 
 function status(text, kind='offline') {
@@ -34,20 +36,36 @@ function joinUrl(id) {
   url.hash = `live=${id}`;
   return url.toString();
 }
+async function registerPresence() {
+  if (!db || !user || !roomId || !role) return;
+  const presenceRef = ref(db, `rooms/${roomId}/presence/${user.uid}`);
+  try {
+    presenceDisconnect = onDisconnect(presenceRef);
+    await presenceDisconnect.remove();
+    await set(presenceRef, { role, connectedAt: serverTimestamp() });
+  } catch (error) { console.error('Presence registration failed', error); }
+}
+
+function renderQr(target, size=170) {
+  target.innerHTML = '';
+  if (window.QRCode && roomId) new window.QRCode(target, { text: joinUrl(roomId), width: size, height: size, correctLevel: window.QRCode.CorrectLevel.M });
+}
+
 function showRoom() {
   ui.start.classList.add('hidden'); ui.joinBox.classList.add('hidden'); ui.details.classList.remove('hidden');
   ui.code.textContent = roomCode || '------';
   ui.viewer.classList.toggle('hidden', role !== 'viewer');
   window.setLiveViewerMode?.(role === 'viewer');
   ui.qr.innerHTML = '';
-  if (role === 'host' && window.QRCode) new window.QRCode(ui.qr, { text: joinUrl(roomId), width: 170, height: 170, correctLevel: window.QRCode.CorrectLevel.M });
-  else ui.qr.classList.add('hidden');
+  if (role === 'host') { renderQr(ui.qr, 170); ui.qr.classList.remove('hidden'); ui.expandQr.classList.remove('hidden'); }
+  else { ui.qr.classList.add('hidden'); ui.expandQr.classList.add('hidden'); }
+  ui.scoreboardMode.textContent = document.body.classList.contains('scoreboard-display') ? 'Exit Scoreboard' : 'Full-screen Scoreboard';
 }
 function resetUi() {
-  unsubscribe?.(); unsubscribe = null; roomId = roomCode = role = null;
+  unsubscribe?.(); unsubscribe = null; presenceDisconnect?.cancel?.(); presenceDisconnect = null; roomId = roomCode = role = null;
   localStorage.removeItem('uno-live-session-v1');
   ui.start.classList.remove('hidden'); ui.details.classList.add('hidden'); ui.joinBox.classList.add('hidden'); ui.viewer.classList.add('hidden'); ui.qr.classList.remove('hidden');
-  window.setLiveViewerMode?.(false); status('Local game only.');
+  window.setLiveViewerMode?.(false); document.body.classList.remove('scoreboard-display'); ui.viewerCount.classList.add('hidden'); status('Local game only.');
   history.replaceState(null, '', `${location.pathname}${location.search}`);
 }
 async function ensureAuth() {
@@ -69,7 +87,7 @@ async function hostRoom() {
     roomId=randomId(); roomCode=await makeUniqueCode(roomId); role='host';
     await set(ref(db, `rooms/${roomId}`), { hostUid:user.uid, code:roomCode, createdAt:serverTimestamp(), updatedAt:serverTimestamp(), game:window.getLiveGameState() });
     localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role}));
-    showRoom(); status(`Hosting room ${roomCode}. Viewers are read-only.`,'connected');
+    showRoom(); subscribe(); await registerPresence(); status(`Hosting room ${roomCode}. Viewers are read-only.`,'connected');
   } catch(e) { console.error(e); status(e.message || 'Could not create room.'); alert(e.message || 'Could not create live room.'); }
 }
 async function joinByRoomId(id) {
@@ -79,7 +97,7 @@ async function joinByRoomId(id) {
     if (!snap.exists()) throw new Error('That live room does not exist or has ended.');
     roomId=id; roomCode=snap.val().code || '------'; role='viewer';
     localStorage.setItem('uno-live-session-v1', JSON.stringify({roomId,roomCode,role}));
-    subscribe(); showRoom(); status(`Watching room ${roomCode}.`,'connected');
+    subscribe(); showRoom(); await registerPresence(); status(`Watching room ${roomCode}.`,'connected');
   } catch(e) { console.error(e); status(e.message || 'Could not join room.'); alert(e.message || 'Could not join room.'); }
 }
 async function joinByCode() {
@@ -96,7 +114,10 @@ function subscribe() {
   unsubscribe?.();
   unsubscribe=onValue(ref(db, `rooms/${roomId}`), snap => {
     if (!snap.exists()) { alert('The host ended this live game.'); resetUi(); return; }
-    if (role === 'viewer') { applyingRemote=true; window.applyLiveGameState?.(snap.val().game); applyingRemote=false; }
+    const room = snap.val();
+    if (role === 'viewer') { applyingRemote=true; window.applyLiveGameState?.(room.game); applyingRemote=false; }
+    const connected = Object.keys(room.presence || {}).length;
+    ui.viewerCount.textContent = `👥 ${connected} connected`; ui.viewerCount.classList.remove('hidden');
     status(role === 'host' ? `Hosting room ${roomCode}. Viewers are read-only.` : `Watching room ${roomCode}.`,'connected');
   }, err => { console.error(err); status('Connection lost. Reconnecting…','connecting'); });
 }
@@ -123,6 +144,10 @@ ui.cancel.addEventListener('click',()=>ui.joinBox.classList.add('hidden')); ui.j
 ui.codeInput.addEventListener('input',()=>ui.codeInput.value=ui.codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g,''));
 ui.codeInput.addEventListener('keydown',e=>{if(e.key==='Enter')joinByCode();}); ui.leave.addEventListener('click',leaveRoom);
 ui.copy.addEventListener('click',async()=>{await navigator.clipboard.writeText(roomCode); alert('Room code copied.');}); ui.share.addEventListener('click',shareRoom);
+ui.expandQr.addEventListener('click',()=>{ ui.overlayRoomCode.textContent=roomCode; renderQr(ui.overlayQr, 380); ui.qrOverlay.classList.remove('hidden'); });
+ui.closeQrOverlay.addEventListener('click',()=>ui.qrOverlay.classList.add('hidden'));
+ui.qrOverlay.addEventListener('click',e=>{ if(e.target===ui.qrOverlay) ui.qrOverlay.classList.add('hidden'); });
+ui.scoreboardMode.addEventListener('click',()=>{ document.body.classList.toggle('scoreboard-display'); ui.scoreboardMode.textContent=document.body.classList.contains('scoreboard-display')?'Exit Scoreboard':'Full-screen Scoreboard'; if(document.body.classList.contains('scoreboard-display')) { const b=document.createElement('button'); b.id='scoreboardExit'; b.className='primary scoreboard-exit'; b.textContent='Exit Scoreboard'; b.onclick=()=>ui.scoreboardMode.click(); document.body.appendChild(b); } else document.getElementById('scoreboardExit')?.remove(); });
 
 if (!configured) {
   status('Live mode needs Firebase setup. Local features still work.');
@@ -135,7 +160,7 @@ if (!configured) {
   else {
     try {
       const saved=JSON.parse(localStorage.getItem('uno-live-session-v1'));
-      if (saved?.roomId && saved?.role === 'host') { roomId=saved.roomId; roomCode=saved.roomCode; role='host'; ensureAuth().then(async()=>{ const snap=await get(ref(db,`rooms/${roomId}`)); if(snap.exists() && snap.val().hostUid===user.uid){showRoom();subscribe();status(`Hosting room ${roomCode}. Viewers are read-only.`,'connected');} else resetUi(); }); }
+      if (saved?.roomId && ['host','viewer'].includes(saved?.role)) { roomId=saved.roomId; roomCode=saved.roomCode; role=saved.role; ensureAuth().then(async()=>{ const snap=await get(ref(db,`rooms/${roomId}`)); const allowed=snap.exists() && (role==='viewer' || snap.val().hostUid===user.uid); if(allowed){ roomCode=snap.val().code || roomCode; showRoom(); subscribe(); await registerPresence(); status(role==='host' ? `Hosting room ${roomCode}. Viewers are read-only.` : `Reconnected to room ${roomCode}.`,'connected'); } else resetUi(); }).catch(resetUi); }
     } catch {}
   }
 }

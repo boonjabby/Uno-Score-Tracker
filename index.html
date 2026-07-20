@@ -76,6 +76,7 @@
           <p class="eyebrow">Live game</p>
           <h2>Host or watch on other phones</h2>
           <p id="liveStatus" class="note">Local game only.</p>
+          <p id="viewerCount" class="note hidden">👥 0 connected</p>
         </div>
         <span id="connectionBadge" class="connection-badge offline">Offline</span>
       </div>
@@ -101,15 +102,22 @@
           <span>Room code</span>
           <strong id="liveRoomCode">------</strong>
           <button id="copyRoomCode" class="secondary" type="button">Copy code</button>
+          <button id="expandQr" class="secondary" type="button">Enlarge QR</button>
         </div>
         <div id="qrCode" class="qr-code" aria-label="QR code for joining the live game"></div>
         <div class="live-room-actions">
           <button id="shareLiveRoom" class="primary" type="button">Share Join Link</button>
+          <button id="scoreboardMode" class="secondary" type="button">Full-screen Scoreboard</button>
           <button id="leaveLiveRoom" class="danger" type="button">End / Leave Live Game</button>
         </div>
       </div>
 
       <div id="viewerNotice" class="viewer-notice hidden">👀 Viewer mode — scores and direction update live. Only the host can make changes.</div>
+      <div id="qrOverlay" class="fullscreen-overlay hidden" role="dialog" aria-modal="true" aria-label="Join live game">
+        <button id="closeQrOverlay" class="overlay-close" type="button" aria-label="Close">×</button>
+        <p class="eyebrow">Join live game</p><strong id="overlayRoomCode" class="overlay-room-code">------</strong>
+        <div id="overlayQr" class="overlay-qr"></div><p>Scan the QR code or enter the room code.</p>
+      </div>
     </section>
 
     <section id="starterCallout" class="starter-callout panel hidden" aria-live="polite"></section>
@@ -216,7 +224,7 @@
       <button id="reloadApp" class="primary" type="button">Update now</button>
     </div>
     <p id="announcement" class="announcement" aria-live="polite">Direction is clockwise.</p>
-    <footer class="app-footer">Version 4.0.1 · Works offline after first load</footer>
+    <footer class="app-footer">Version 4.5.0 · Works offline after first load</footer>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

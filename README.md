@@ -25,8 +25,19 @@ python3 -m http.server 8080
 
 Then open `http://localhost:8080`.
 
-## Open Link in Chrome
-https://boonjabby.github.io/Uno-Score-Tracker/
+## Publish with GitHub Pages
+
+1. Create a new GitHub repository.
+2. Upload every file and folder from this project, including `.github`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **GitHub Actions**.
+5. Push to the `main` branch. The included workflow publishes the app automatically.
+
+Your public address will normally be:
+
+```text
+https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
+```
 
 ## Install on a phone
 
@@ -82,3 +93,12 @@ Live mode uses Firebase Authentication (anonymous accounts) and Firebase Realtim
 ### QR note
 
 QR images are generated locally in the browser using QRCode.js loaded from cdnjs. The room URL is not sent to a QR-image service.
+
+
+## Version 4.5 additions
+
+- Live connected-device count using Firebase presence
+- Automatic host and viewer reconnection after refresh or reopening
+- Enlarged full-screen QR join view
+- Full-screen read-only scoreboard display for a shared tablet or TV
+- Updated security rules allowing each authenticated device to manage only its own presence record
