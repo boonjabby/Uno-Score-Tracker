@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.1.0 — 2026-07-20
+
+- Made Live Game a collapsible panel with remembered per-device open/closed state.
+- Kept live connection status visible while the panel is collapsed.
+- Updated application metadata and service-worker caches for v6.1.0.
+
 ## 6.0.0 — 2026-07-20
 
 - Added host-authoritative collaborative multiplayer controls with Host, Controller, Player and Viewer roles.

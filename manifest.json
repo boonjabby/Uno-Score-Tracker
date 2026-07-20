@@ -3,7 +3,7 @@
   "short_name": "UNO Tracker",
   "description": "Track UNO scores, round history, saved games, statistics and live multiplayer.",
   "id": "./",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

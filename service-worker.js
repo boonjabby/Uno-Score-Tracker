@@ -1,5 +1,5 @@
-const CACHE_NAME = 'uno-tracker-v6.0.0-r3';
-const RUNTIME_CACHE = 'uno-tracker-runtime-v6-r3';
+const CACHE_NAME = 'uno-tracker-v6.1.0';
+const RUNTIME_CACHE = 'uno-tracker-runtime-v6.1';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.json',
   './live-sync.js', './v5-features.js', './firebase-config.js', './CHANGELOG.md', './CURRENT-STATE-v5.1.md', './ROADMAP.md', './icons/icon-192.png', './icons/icon-512.png'

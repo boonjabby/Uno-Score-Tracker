@@ -1,4 +1,4 @@
-# UNO Direction & Score Tracker v6.0.0
+# UNO Direction & Score Tracker v6.1.0
 
 A lightweight, installable Progressive Web App for tracking play direction, calculating cards left in losing hands, and keeping UNO scores.
 
@@ -163,6 +163,12 @@ QR images are generated locally in the browser using QRCode.js loaded from cdnjs
 - Added a bounded live activity log for commands, requests, decisions, permission changes and host transfer
 - Added explicit host transfer, reconnect-safe listener cleanup and safe waiting while the host is offline
 - Extended the Firebase room schema and security rules without allowing collaborators to write authoritative game state directly
+
+## Version 6.1 additions
+
+- Made the complete Live Game panel collapsible to reclaim screen space during play
+- Remembered the Live Game panel's open or closed state on the current device
+- Kept connection status and connected-device count visible in the collapsed summary
 
 See `CHANGELOG.md` for the release summary, `CURRENT-STATE-v5.1.md` for the pre-v6 architecture audit, and `ROADMAP.md` for the original multi-device controller design.
 

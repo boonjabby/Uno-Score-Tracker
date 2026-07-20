@@ -961,7 +961,7 @@ window.applyLiveGameState = function applyLiveGameState(live) {
 
 window.setLiveViewerMode = function setLiveViewerMode(enabled) {
   document.body.classList.toggle('viewer-mode', Boolean(enabled));
-  document.querySelectorAll('.settings-grid, .direction-stage, main > section.panel:not(.live-panel), main > details.panel').forEach(region => {
+  document.querySelectorAll('.settings-grid, .direction-stage, main > section.panel:not(.live-panel), main > details.panel:not(.live-panel)').forEach(region => {
     region.querySelectorAll('button, input, select, textarea').forEach(control => {
       if (enabled && !control.disabled) { control.disabled = true; control.dataset.viewerDisabled = 'true'; }
       else if (!enabled && control.dataset.viewerDisabled === 'true') { control.disabled = false; delete control.dataset.viewerDisabled; }

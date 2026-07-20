@@ -481,13 +481,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .viewer-mode .quick-actions,
 .viewer-mode .direction-stage,
 .viewer-mode main > section.panel:not(.live-panel),
-.viewer-mode main > details.panel,
+.viewer-mode main > details.panel:not(.live-panel),
 .viewer-mode .header-actions #undoAction { pointer-events: none; }
 .viewer-mode .settings-grid,
 .viewer-mode .quick-actions,
 .viewer-mode .direction-stage,
 .viewer-mode main > section.panel:not(.live-panel),
-.viewer-mode main > details.panel { opacity: .72; }
+.viewer-mode main > details.panel:not(.live-panel) { opacity: .72; }
 [data-theme="dark"] .connection-badge.connected { background: #173a22; color: #b9f2c6; }
 [data-theme="dark"] .connection-badge.connecting { background: #433711; color: #ffe89a; }
 [data-theme="dark"] .connection-badge.offline { background: #402025; color: #ffc0c5; }
